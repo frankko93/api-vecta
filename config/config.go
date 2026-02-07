@@ -1,7 +1,7 @@
 package config
 
 import (
-	"log"
+	"os"
 
 	"github.com/joho/godotenv"
 )
@@ -9,28 +9,25 @@ import (
 type Config struct {
 	API
 	Cors
-
 	Database
-	Cache
-	Elasticsearch
-
-	OpenTelemetry
-	Session
 }
 
 func New() *Config {
-	err := godotenv.Load()
-	if err != nil {
-		log.Println(err)
-	}
+	// Intentar cargar .env, si no existe usar defaults
+	_ = godotenv.Load()
 
 	return &Config{
-		API:           NewAPI(),
-		Cors:          NewCors(),
-		Database:      DataStore(),
-		Cache:         NewCache(),
-		Elasticsearch: ElasticSearch(),
-		Session:       NewSession(),
-		OpenTelemetry: NewOpenTelemetry(),
+		API:      NewAPI(),
+		Cors:     NewCors(),
+		Database: DataStore(),
 	}
+}
+
+// GetEnv helper para obtener variable con default
+func GetEnv(key, defaultValue string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	return value
 }

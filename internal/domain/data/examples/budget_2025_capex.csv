@@ -1,0 +1,13 @@
+date,category,car_number,project_name,type,amount,currency
+2025-01-01,Mine Equipment,C001,Equipment Q1,sustaining,120000,USD
+2025-02-01,Mine Equipment,C002,Equipment Q1,sustaining,125000,USD
+2025-03-01,Mine Equipment,C003,Equipment Q1,sustaining,130000,USD
+2025-04-01,Plant Upgrades,C004,Plant Q2,sustaining,140000,USD
+2025-05-01,Mine Infrastructure,C005,Infra Q2,sustaining,95000,USD
+2025-06-01,Mine Equipment,C006,Equipment Q2,sustaining,135000,USD
+2025-07-01,Plant Upgrades,C007,Plant Q3,sustaining,145000,USD
+2025-08-01,Mine Equipment,C008,Equipment Q3,sustaining,140000,USD
+2025-09-01,Mine Infrastructure,C009,Infra Q3,sustaining,100000,USD
+2025-10-01,Mine Equipment,C010,Equipment Q4,sustaining,145000,USD
+2025-11-01,Plant Upgrades,C011,Plant Q4,sustaining,150000,USD
+2025-12-01,Mine Equipment,C012,Equipment Q4,sustaining,150000,USD

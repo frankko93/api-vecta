@@ -1,0 +1,1140 @@
+package reports
+
+import (
+	"context"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/gmhafiz/go8/internal/domain/data"
+)
+
+// DetailUseCase interface for detailed reports
+type DetailUseCase interface {
+	GetPBRDetail(ctx context.Context, req *DetailRequest) (*PBRDetailReport, error)
+	GetDoreDetail(ctx context.Context, req *DetailRequest) (*DoreDetailReport, error)
+	GetOPEXDetail(ctx context.Context, req *DetailRequest) (*OPEXDetailReport, error)
+	GetCAPEXDetail(ctx context.Context, req *DetailRequest) (*CAPEXDetailReport, error)
+	GetFinancialDetail(ctx context.Context, req *DetailRequest) (*FinancialDetailReport, error)
+	GetProductionDetail(ctx context.Context, req *DetailRequest) (*ProductionDetailReport, error)
+	GetRevenueDetail(ctx context.Context, req *DetailRequest) (*RevenueDetailReport, error)
+}
+
+// DetailRequest represents a request for detailed report
+type DetailRequest struct {
+	CompanyID int64  `form:"company_id" validate:"required,gt=0"`
+	Year      int    `form:"year" validate:"required,gt=2000"`
+	Months    string `form:"months"` // Optional: "1,2,3" or empty for all months
+}
+
+type detailUseCase struct {
+	repo       Repository
+	calculator *Calculator
+}
+
+func NewDetailUseCase(repo Repository) DetailUseCase {
+	return &detailUseCase{
+		repo:       repo,
+		calculator: NewCalculator(),
+	}
+}
+
+// GetPBRDetail returns detailed PBR report
+func (uc *detailUseCase) GetPBRDetail(ctx context.Context, req *DetailRequest) (*PBRDetailReport, error) {
+	companyName, err := uc.repo.GetCompanyName(ctx, req.CompanyID)
+	if err != nil {
+		return nil, err
+	}
+
+	pbrActual, err := uc.repo.GetPBRData(ctx, req.CompanyID, req.Year, "actual")
+	if err != nil {
+		return nil, err
+	}
+
+	pbrBudget, err := uc.repo.GetPBRData(ctx, req.CompanyID, req.Year, "budget")
+	if err != nil {
+		return nil, err
+	}
+
+	monthsFilter := uc.parseMonthsFilter(req.Months)
+	months := uc.buildPBRMonthlyData(req.Year, pbrActual, pbrBudget, monthsFilter)
+
+	return &PBRDetailReport{
+		CompanyID:   req.CompanyID,
+		CompanyName: companyName,
+		Year:        req.Year,
+		Months:      months,
+	}, nil
+}
+
+// GetDoreDetail returns detailed Dore report
+func (uc *detailUseCase) GetDoreDetail(ctx context.Context, req *DetailRequest) (*DoreDetailReport, error) {
+	companyName, err := uc.repo.GetCompanyName(ctx, req.CompanyID)
+	if err != nil {
+		return nil, err
+	}
+
+	doreActual, err := uc.repo.GetDoreData(ctx, req.CompanyID, req.Year, "actual")
+	if err != nil {
+		return nil, err
+	}
+
+	doreBudget, err := uc.repo.GetDoreData(ctx, req.CompanyID, req.Year, "budget")
+	if err != nil {
+		return nil, err
+	}
+
+	pbrActual, err := uc.repo.GetPBRData(ctx, req.CompanyID, req.Year, "actual")
+	if err != nil {
+		return nil, err
+	}
+
+	pbrBudget, err := uc.repo.GetPBRData(ctx, req.CompanyID, req.Year, "budget")
+	if err != nil {
+		return nil, err
+	}
+
+	monthsFilter := uc.parseMonthsFilter(req.Months)
+	months := uc.buildDoreMonthlyData(req.Year, doreActual, doreBudget, pbrActual, pbrBudget, monthsFilter)
+
+	return &DoreDetailReport{
+		CompanyID:   req.CompanyID,
+		CompanyName: companyName,
+		Year:        req.Year,
+		Months:      months,
+	}, nil
+}
+
+// GetOPEXDetail returns detailed OPEX report
+func (uc *detailUseCase) GetOPEXDetail(ctx context.Context, req *DetailRequest) (*OPEXDetailReport, error) {
+	companyName, err := uc.repo.GetCompanyName(ctx, req.CompanyID)
+	if err != nil {
+		return nil, err
+	}
+
+	opexActual, err := uc.repo.GetOPEXData(ctx, req.CompanyID, req.Year, "actual")
+	if err != nil {
+		return nil, err
+	}
+
+	opexBudget, err := uc.repo.GetOPEXData(ctx, req.CompanyID, req.Year, "budget")
+	if err != nil {
+		return nil, err
+	}
+
+	monthsFilter := uc.parseMonthsFilter(req.Months)
+	months, byCostCenter, bySubcategory := uc.buildOPEXMonthlyData(req.Year, opexActual, opexBudget, monthsFilter)
+
+	return &OPEXDetailReport{
+		CompanyID:     req.CompanyID,
+		CompanyName:   companyName,
+		Year:          req.Year,
+		Months:        months,
+		ByCostCenter:  byCostCenter,
+		BySubcategory: bySubcategory,
+	}, nil
+}
+
+// GetCAPEXDetail returns detailed CAPEX report
+func (uc *detailUseCase) GetCAPEXDetail(ctx context.Context, req *DetailRequest) (*CAPEXDetailReport, error) {
+	companyName, err := uc.repo.GetCompanyName(ctx, req.CompanyID)
+	if err != nil {
+		return nil, err
+	}
+
+	capexActual, err := uc.repo.GetCAPEXData(ctx, req.CompanyID, req.Year, "actual")
+	if err != nil {
+		return nil, err
+	}
+
+	capexBudget, err := uc.repo.GetCAPEXData(ctx, req.CompanyID, req.Year, "budget")
+	if err != nil {
+		return nil, err
+	}
+
+	monthsFilter := uc.parseMonthsFilter(req.Months)
+	months, byType, byCategory := uc.buildCAPEXMonthlyData(req.Year, capexActual, capexBudget, monthsFilter)
+
+	return &CAPEXDetailReport{
+		CompanyID:   req.CompanyID,
+		CompanyName: companyName,
+		Year:        req.Year,
+		Months:      months,
+		ByType:      byType,
+		ByCategory:  byCategory,
+	}, nil
+}
+
+// GetFinancialDetail returns detailed Financial report
+func (uc *detailUseCase) GetFinancialDetail(ctx context.Context, req *DetailRequest) (*FinancialDetailReport, error) {
+	companyName, err := uc.repo.GetCompanyName(ctx, req.CompanyID)
+	if err != nil {
+		return nil, err
+	}
+
+	financialActual, err := uc.repo.GetFinancialData(ctx, req.CompanyID, req.Year, "actual")
+	if err != nil {
+		return nil, err
+	}
+
+	financialBudget, err := uc.repo.GetFinancialData(ctx, req.CompanyID, req.Year, "budget")
+	if err != nil {
+		return nil, err
+	}
+
+	monthsFilter := uc.parseMonthsFilter(req.Months)
+	months := uc.buildFinancialMonthlyData(req.Year, financialActual, financialBudget, monthsFilter)
+
+	return &FinancialDetailReport{
+		CompanyID:   req.CompanyID,
+		CompanyName: companyName,
+		Year:        req.Year,
+		Months:      months,
+	}, nil
+}
+
+// GetProductionDetail returns detailed Production report
+func (uc *detailUseCase) GetProductionDetail(ctx context.Context, req *DetailRequest) (*ProductionDetailReport, error) {
+	companyName, err := uc.repo.GetCompanyName(ctx, req.CompanyID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get PBR for Silver/Gold production
+	pbrActual, err := uc.repo.GetPBRData(ctx, req.CompanyID, req.Year, "actual")
+	if err != nil {
+		return nil, err
+	}
+
+	pbrBudget, err := uc.repo.GetPBRData(ctx, req.CompanyID, req.Year, "budget")
+	if err != nil {
+		return nil, err
+	}
+
+	// Get ProductionData for other minerals
+	productionActual, err := uc.repo.GetProductionData(ctx, req.CompanyID, req.Year, "actual")
+	if err != nil {
+		return nil, err
+	}
+
+	productionBudget, err := uc.repo.GetProductionData(ctx, req.CompanyID, req.Year, "budget")
+	if err != nil {
+		return nil, err
+	}
+
+	// Get mineral map for code/name lookup
+	mineralMap, err := uc.repo.GetMineralMap(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	monthsFilter := uc.parseMonthsFilter(req.Months)
+	months, byMineral := uc.buildProductionMonthlyData(req.Year, pbrActual, pbrBudget, productionActual, productionBudget, mineralMap, monthsFilter)
+
+	return &ProductionDetailReport{
+		CompanyID:   req.CompanyID,
+		CompanyName: companyName,
+		Year:        req.Year,
+		Months:      months,
+		ByMineral:   byMineral,
+	}, nil
+}
+
+// GetRevenueDetail returns detailed Revenue report
+func (uc *detailUseCase) GetRevenueDetail(ctx context.Context, req *DetailRequest) (*RevenueDetailReport, error) {
+	companyName, err := uc.repo.GetCompanyName(ctx, req.CompanyID)
+	if err != nil {
+		return nil, err
+	}
+
+	revenueActual, err := uc.repo.GetRevenueData(ctx, req.CompanyID, req.Year, "actual")
+	if err != nil {
+		return nil, err
+	}
+
+	revenueBudget, err := uc.repo.GetRevenueData(ctx, req.CompanyID, req.Year, "budget")
+	if err != nil {
+		return nil, err
+	}
+
+	// Get mineral map for code/name lookup
+	mineralMap, err := uc.repo.GetMineralMap(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	monthsFilter := uc.parseMonthsFilter(req.Months)
+	months, byMineral := uc.buildRevenueMonthlyData(req.Year, revenueActual, revenueBudget, mineralMap, monthsFilter)
+
+	return &RevenueDetailReport{
+		CompanyID:   req.CompanyID,
+		CompanyName: companyName,
+		Year:        req.Year,
+		Months:      months,
+		ByMineral:   byMineral,
+	}, nil
+}
+
+// Helper methods
+
+func (uc *detailUseCase) parseMonthsFilter(monthsStr string) map[int]bool {
+	if monthsStr == "" {
+		return nil // No filter, return all months
+	}
+
+	monthsFilter := make(map[int]bool)
+	parts := strings.Split(monthsStr, ",")
+	for _, p := range parts {
+		month, err := strconv.Atoi(strings.TrimSpace(p))
+		if err == nil && month >= 1 && month <= 12 {
+			monthsFilter[month] = true
+		}
+	}
+
+	return monthsFilter
+}
+
+// buildPBRMonthlyData builds PBR monthly data with variances
+func (uc *detailUseCase) buildPBRMonthlyData(
+	year int,
+	pbrActual, pbrBudget []*data.PBRData,
+	monthsFilter map[int]bool,
+) []PBRMonthlyData {
+	pbrActualByMonth := groupPBRByMonth(pbrActual)
+	pbrBudgetByMonth := groupPBRByMonth(pbrBudget)
+
+	var months []PBRMonthlyData
+
+	for month := 1; month <= 12; month++ {
+		if monthsFilter != nil && !monthsFilter[month] {
+			continue
+		}
+
+		monthKey := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC).Format("2006-01")
+
+		actual := uc.buildPBRDetail(pbrActualByMonth[month])
+		budget := uc.buildPBRDetail(pbrBudgetByMonth[month])
+
+		var variance *PBRVariance
+		if actual != nil && budget != nil {
+			variance = uc.calculatePBRVariance(actual, budget)
+		}
+
+		months = append(months, PBRMonthlyData{
+			Month:    monthKey,
+			Actual:   actual,
+			Budget:   budget,
+			Variance: variance,
+		})
+	}
+
+	return months
+}
+
+func (uc *detailUseCase) buildPBRDetail(pbr *data.PBRData) *PBRDetail {
+	if pbr == nil {
+		return nil
+	}
+
+	// Calculate ratios
+	var wasteOreRatio float64
+	if pbr.OreMinedT > 0 {
+		wasteOreRatio = pbr.WasteMinedT / pbr.OreMinedT
+	}
+	totalMoved := pbr.OreMinedT + pbr.WasteMinedT
+
+	// Calculate production
+	silverOz := pbr.FeedGradeSilverGpt * pbr.TotalTonnesProcessed * (pbr.RecoveryRateSilverPct / 100) / 31.1035
+	goldOz := pbr.FeedGradeGoldGpt * pbr.TotalTonnesProcessed * (pbr.RecoveryRateGoldPct / 100) / 31.1035
+
+	return &PBRDetail{
+		OreMinedT:               pbr.OreMinedT,
+		WasteMinedT:             pbr.WasteMinedT,
+		DevelopmentsM:           pbr.DevelopmentsM,
+		WasteOreRatio:           wasteOreRatio,
+		TotalMoved:              totalMoved,
+		TotalTonnesProcessed:    pbr.TotalTonnesProcessed,
+		FeedGradeSilverGpt:      pbr.FeedGradeSilverGpt,
+		FeedGradeGoldGpt:        pbr.FeedGradeGoldGpt,
+		RecoveryRateSilverPct:   pbr.RecoveryRateSilverPct,
+		RecoveryRateGoldPct:     pbr.RecoveryRateGoldPct,
+		TotalProductionSilverOz: silverOz,
+		TotalProductionGoldOz:   goldOz,
+		HasData:                 true,
+	}
+}
+
+func (uc *detailUseCase) calculatePBRVariance(actual, budget *PBRDetail) *PBRVariance {
+	return &PBRVariance{
+		OreMinedT:               VarianceMetric{Actual: actual.OreMinedT, Budget: budget.OreMinedT, Variance: actual.OreMinedT - budget.OreMinedT, VariancePct: calculateVariancePct(actual.OreMinedT, budget.OreMinedT)},
+		WasteMinedT:             VarianceMetric{Actual: actual.WasteMinedT, Budget: budget.WasteMinedT, Variance: actual.WasteMinedT - budget.WasteMinedT, VariancePct: calculateVariancePct(actual.WasteMinedT, budget.WasteMinedT)},
+		DevelopmentsM:           VarianceMetric{Actual: actual.DevelopmentsM, Budget: budget.DevelopmentsM, Variance: actual.DevelopmentsM - budget.DevelopmentsM, VariancePct: calculateVariancePct(actual.DevelopmentsM, budget.DevelopmentsM)},
+		WasteOreRatio:           VarianceMetric{Actual: actual.WasteOreRatio, Budget: budget.WasteOreRatio, Variance: actual.WasteOreRatio - budget.WasteOreRatio, VariancePct: calculateVariancePct(actual.WasteOreRatio, budget.WasteOreRatio)},
+		TotalMoved:              VarianceMetric{Actual: actual.TotalMoved, Budget: budget.TotalMoved, Variance: actual.TotalMoved - budget.TotalMoved, VariancePct: calculateVariancePct(actual.TotalMoved, budget.TotalMoved)},
+		TotalTonnesProcessed:    VarianceMetric{Actual: actual.TotalTonnesProcessed, Budget: budget.TotalTonnesProcessed, Variance: actual.TotalTonnesProcessed - budget.TotalTonnesProcessed, VariancePct: calculateVariancePct(actual.TotalTonnesProcessed, budget.TotalTonnesProcessed)},
+		FeedGradeSilverGpt:      VarianceMetric{Actual: actual.FeedGradeSilverGpt, Budget: budget.FeedGradeSilverGpt, Variance: actual.FeedGradeSilverGpt - budget.FeedGradeSilverGpt, VariancePct: calculateVariancePct(actual.FeedGradeSilverGpt, budget.FeedGradeSilverGpt)},
+		FeedGradeGoldGpt:        VarianceMetric{Actual: actual.FeedGradeGoldGpt, Budget: budget.FeedGradeGoldGpt, Variance: actual.FeedGradeGoldGpt - budget.FeedGradeGoldGpt, VariancePct: calculateVariancePct(actual.FeedGradeGoldGpt, budget.FeedGradeGoldGpt)},
+		RecoveryRateSilverPct:   VarianceMetric{Actual: actual.RecoveryRateSilverPct, Budget: budget.RecoveryRateSilverPct, Variance: actual.RecoveryRateSilverPct - budget.RecoveryRateSilverPct, VariancePct: calculateVariancePct(actual.RecoveryRateSilverPct, budget.RecoveryRateSilverPct)},
+		RecoveryRateGoldPct:     VarianceMetric{Actual: actual.RecoveryRateGoldPct, Budget: budget.RecoveryRateGoldPct, Variance: actual.RecoveryRateGoldPct - budget.RecoveryRateGoldPct, VariancePct: calculateVariancePct(actual.RecoveryRateGoldPct, budget.RecoveryRateGoldPct)},
+		TotalProductionSilverOz: VarianceMetric{Actual: actual.TotalProductionSilverOz, Budget: budget.TotalProductionSilverOz, Variance: actual.TotalProductionSilverOz - budget.TotalProductionSilverOz, VariancePct: calculateVariancePct(actual.TotalProductionSilverOz, budget.TotalProductionSilverOz)},
+		TotalProductionGoldOz:   VarianceMetric{Actual: actual.TotalProductionGoldOz, Budget: budget.TotalProductionGoldOz, Variance: actual.TotalProductionGoldOz - budget.TotalProductionGoldOz, VariancePct: calculateVariancePct(actual.TotalProductionGoldOz, budget.TotalProductionGoldOz)},
+	}
+}
+
+// buildDoreMonthlyData builds Dore monthly data with variances
+func (uc *detailUseCase) buildDoreMonthlyData(
+	year int,
+	doreActual, doreBudget []*data.DoreData,
+	pbrActual, pbrBudget []*data.PBRData,
+	monthsFilter map[int]bool,
+) []DoreMonthlyData {
+	doreActualByMonth := groupDoreByMonth(doreActual)
+	doreBudgetByMonth := groupDoreByMonth(doreBudget)
+	pbrActualByMonth := groupPBRByMonth(pbrActual)
+	pbrBudgetByMonth := groupPBRByMonth(pbrBudget)
+
+	var months []DoreMonthlyData
+
+	for month := 1; month <= 12; month++ {
+		if monthsFilter != nil && !monthsFilter[month] {
+			continue
+		}
+
+		monthKey := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC).Format("2006-01")
+
+		actual := uc.buildDoreDetail(doreActualByMonth[month], pbrActualByMonth[month])
+		budget := uc.buildDoreDetail(doreBudgetByMonth[month], pbrBudgetByMonth[month])
+
+		var variance *DoreVariance
+		if actual != nil && budget != nil {
+			variance = uc.calculateDoreVariance(actual, budget)
+		}
+
+		months = append(months, DoreMonthlyData{
+			Month:    monthKey,
+			Actual:   actual,
+			Budget:   budget,
+			Variance: variance,
+		})
+	}
+
+	return months
+}
+
+func (uc *detailUseCase) buildDoreDetail(dore *data.DoreData, pbr *data.PBRData) *DoreDetail {
+	if dore == nil {
+		return nil
+	}
+
+	// Metal in dore (before adjustments)
+	metalInDoreSilverOz := dore.DoreProducedOz * (dore.SilverGradePct / 100)
+	metalInDoreGoldOz := dore.DoreProducedOz * (dore.GoldGradePct / 100)
+
+	// Metal adjusted (after adjustments)
+	metalAdjustedSilverOz := metalInDoreSilverOz + dore.SilverAdjustmentOz
+	metalAdjustedGoldOz := metalInDoreGoldOz + dore.GoldAdjustmentOz
+
+	// Deductions
+	deductionsSilverOz := metalAdjustedSilverOz * (dore.AgDeductionsPct / 100)
+	deductionsGoldOz := metalAdjustedGoldOz * (dore.AuDeductionsPct / 100)
+
+	// Payable metal (after deductions)
+	payableSilverOz := metalAdjustedSilverOz - deductionsSilverOz
+	payableGoldOz := metalAdjustedGoldOz - deductionsGoldOz
+
+	// Gross revenue
+	grossRevenueSilver := payableSilverOz * dore.RealizedPriceSilver
+	grossRevenueGold := payableGoldOz * dore.RealizedPriceGold
+	grossRevenueTotal := grossRevenueSilver + grossRevenueGold
+
+	// Charges
+	totalCharges := dore.TreatmentCharge + dore.RefiningDeductionsAu
+
+	// NSR Dore
+	nsrDore := grossRevenueTotal - totalCharges
+
+	return &DoreDetail{
+		DoreProducedOz:        dore.DoreProducedOz,
+		SilverGradePct:        dore.SilverGradePct,
+		GoldGradePct:          dore.GoldGradePct,
+		MetalInDoreSilverOz:   metalInDoreSilverOz,
+		MetalInDoreGoldOz:     metalInDoreGoldOz,
+		SilverAdjustmentOz:    dore.SilverAdjustmentOz,
+		GoldAdjustmentOz:      dore.GoldAdjustmentOz,
+		MetalAdjustedSilverOz: metalAdjustedSilverOz,
+		MetalAdjustedGoldOz:   metalAdjustedGoldOz,
+		AgDeductionsPct:       dore.AgDeductionsPct,
+		AuDeductionsPct:       dore.AuDeductionsPct,
+		DeductionsSilverOz:    deductionsSilverOz,
+		DeductionsGoldOz:      deductionsGoldOz,
+		PayableSilverOz:       payableSilverOz,
+		PayableGoldOz:         payableGoldOz,
+		PBRPriceSilver:        dore.PBRPriceSilver,
+		PBRPriceGold:          dore.PBRPriceGold,
+		RealizedPriceSilver:   dore.RealizedPriceSilver,
+		RealizedPriceGold:     dore.RealizedPriceGold,
+		GrossRevenueSilver:    grossRevenueSilver,
+		GrossRevenueGold:      grossRevenueGold,
+		GrossRevenueTotal:     grossRevenueTotal,
+		TreatmentCharge:       dore.TreatmentCharge,
+		RefiningDeductionsAu:  dore.RefiningDeductionsAu,
+		TotalCharges:          totalCharges,
+		NSRDore:               nsrDore,
+		HasData:               true,
+	}
+}
+
+func (uc *detailUseCase) calculateDoreVariance(actual, budget *DoreDetail) *DoreVariance {
+	return &DoreVariance{
+		DoreProducedOz:        VarianceMetric{Actual: actual.DoreProducedOz, Budget: budget.DoreProducedOz, Variance: actual.DoreProducedOz - budget.DoreProducedOz, VariancePct: calculateVariancePct(actual.DoreProducedOz, budget.DoreProducedOz)},
+		SilverGradePct:        VarianceMetric{Actual: actual.SilverGradePct, Budget: budget.SilverGradePct, Variance: actual.SilverGradePct - budget.SilverGradePct, VariancePct: calculateVariancePct(actual.SilverGradePct, budget.SilverGradePct)},
+		GoldGradePct:          VarianceMetric{Actual: actual.GoldGradePct, Budget: budget.GoldGradePct, Variance: actual.GoldGradePct - budget.GoldGradePct, VariancePct: calculateVariancePct(actual.GoldGradePct, budget.GoldGradePct)},
+		MetalInDoreSilverOz:   VarianceMetric{Actual: actual.MetalInDoreSilverOz, Budget: budget.MetalInDoreSilverOz, Variance: actual.MetalInDoreSilverOz - budget.MetalInDoreSilverOz, VariancePct: calculateVariancePct(actual.MetalInDoreSilverOz, budget.MetalInDoreSilverOz)},
+		MetalInDoreGoldOz:     VarianceMetric{Actual: actual.MetalInDoreGoldOz, Budget: budget.MetalInDoreGoldOz, Variance: actual.MetalInDoreGoldOz - budget.MetalInDoreGoldOz, VariancePct: calculateVariancePct(actual.MetalInDoreGoldOz, budget.MetalInDoreGoldOz)},
+		SilverAdjustmentOz:    VarianceMetric{Actual: actual.SilverAdjustmentOz, Budget: budget.SilverAdjustmentOz, Variance: actual.SilverAdjustmentOz - budget.SilverAdjustmentOz, VariancePct: calculateVariancePct(actual.SilverAdjustmentOz, budget.SilverAdjustmentOz)},
+		GoldAdjustmentOz:      VarianceMetric{Actual: actual.GoldAdjustmentOz, Budget: budget.GoldAdjustmentOz, Variance: actual.GoldAdjustmentOz - budget.GoldAdjustmentOz, VariancePct: calculateVariancePct(actual.GoldAdjustmentOz, budget.GoldAdjustmentOz)},
+		MetalAdjustedSilverOz: VarianceMetric{Actual: actual.MetalAdjustedSilverOz, Budget: budget.MetalAdjustedSilverOz, Variance: actual.MetalAdjustedSilverOz - budget.MetalAdjustedSilverOz, VariancePct: calculateVariancePct(actual.MetalAdjustedSilverOz, budget.MetalAdjustedSilverOz)},
+		MetalAdjustedGoldOz:   VarianceMetric{Actual: actual.MetalAdjustedGoldOz, Budget: budget.MetalAdjustedGoldOz, Variance: actual.MetalAdjustedGoldOz - budget.MetalAdjustedGoldOz, VariancePct: calculateVariancePct(actual.MetalAdjustedGoldOz, budget.MetalAdjustedGoldOz)},
+		DeductionsSilverOz:    VarianceMetric{Actual: actual.DeductionsSilverOz, Budget: budget.DeductionsSilverOz, Variance: actual.DeductionsSilverOz - budget.DeductionsSilverOz, VariancePct: calculateVariancePct(actual.DeductionsSilverOz, budget.DeductionsSilverOz)},
+		DeductionsGoldOz:      VarianceMetric{Actual: actual.DeductionsGoldOz, Budget: budget.DeductionsGoldOz, Variance: actual.DeductionsGoldOz - budget.DeductionsGoldOz, VariancePct: calculateVariancePct(actual.DeductionsGoldOz, budget.DeductionsGoldOz)},
+		PayableSilverOz:       VarianceMetric{Actual: actual.PayableSilverOz, Budget: budget.PayableSilverOz, Variance: actual.PayableSilverOz - budget.PayableSilverOz, VariancePct: calculateVariancePct(actual.PayableSilverOz, budget.PayableSilverOz)},
+		PayableGoldOz:         VarianceMetric{Actual: actual.PayableGoldOz, Budget: budget.PayableGoldOz, Variance: actual.PayableGoldOz - budget.PayableGoldOz, VariancePct: calculateVariancePct(actual.PayableGoldOz, budget.PayableGoldOz)},
+		GrossRevenueSilver:    VarianceMetric{Actual: actual.GrossRevenueSilver, Budget: budget.GrossRevenueSilver, Variance: actual.GrossRevenueSilver - budget.GrossRevenueSilver, VariancePct: calculateVariancePct(actual.GrossRevenueSilver, budget.GrossRevenueSilver)},
+		GrossRevenueGold:      VarianceMetric{Actual: actual.GrossRevenueGold, Budget: budget.GrossRevenueGold, Variance: actual.GrossRevenueGold - budget.GrossRevenueGold, VariancePct: calculateVariancePct(actual.GrossRevenueGold, budget.GrossRevenueGold)},
+		GrossRevenueTotal:     VarianceMetric{Actual: actual.GrossRevenueTotal, Budget: budget.GrossRevenueTotal, Variance: actual.GrossRevenueTotal - budget.GrossRevenueTotal, VariancePct: calculateVariancePct(actual.GrossRevenueTotal, budget.GrossRevenueTotal)},
+		TreatmentCharge:       VarianceMetric{Actual: actual.TreatmentCharge, Budget: budget.TreatmentCharge, Variance: actual.TreatmentCharge - budget.TreatmentCharge, VariancePct: calculateVariancePct(actual.TreatmentCharge, budget.TreatmentCharge)},
+		RefiningDeductionsAu:  VarianceMetric{Actual: actual.RefiningDeductionsAu, Budget: budget.RefiningDeductionsAu, Variance: actual.RefiningDeductionsAu - budget.RefiningDeductionsAu, VariancePct: calculateVariancePct(actual.RefiningDeductionsAu, budget.RefiningDeductionsAu)},
+		TotalCharges:          VarianceMetric{Actual: actual.TotalCharges, Budget: budget.TotalCharges, Variance: actual.TotalCharges - budget.TotalCharges, VariancePct: calculateVariancePct(actual.TotalCharges, budget.TotalCharges)},
+		NSRDore:               VarianceMetric{Actual: actual.NSRDore, Budget: budget.NSRDore, Variance: actual.NSRDore - budget.NSRDore, VariancePct: calculateVariancePct(actual.NSRDore, budget.NSRDore)},
+	}
+}
+
+// buildOPEXMonthlyData builds OPEX monthly data with variances and aggregations
+func (uc *detailUseCase) buildOPEXMonthlyData(
+	year int,
+	opexActual, opexBudget []*data.OPEXData,
+	monthsFilter map[int]bool,
+) ([]OPEXMonthlyData, map[string]OPEXCostCenterData, map[string]OPEXSubcategoryData) {
+	opexActualByMonth := groupOPEXByMonth(opexActual)
+	opexBudgetByMonth := groupOPEXByMonth(opexBudget)
+
+	var months []OPEXMonthlyData
+	costCenterTotals := make(map[string]struct{ Actual, Budget float64 })
+
+	for month := 1; month <= 12; month++ {
+		if monthsFilter != nil && !monthsFilter[month] {
+			continue
+		}
+
+		monthKey := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC).Format("2006-01")
+
+		actual := uc.buildOPEXDetail(opexActualByMonth[month])
+		budget := uc.buildOPEXDetail(opexBudgetByMonth[month])
+
+		// Aggregate by cost center
+		if actual != nil {
+			costCenterTotals["Mine"] = struct{ Actual, Budget float64 }{costCenterTotals["Mine"].Actual + actual.Mine, costCenterTotals["Mine"].Budget}
+			costCenterTotals["Processing"] = struct{ Actual, Budget float64 }{costCenterTotals["Processing"].Actual + actual.Processing, costCenterTotals["Processing"].Budget}
+			costCenterTotals["G&A"] = struct{ Actual, Budget float64 }{costCenterTotals["G&A"].Actual + actual.GA, costCenterTotals["G&A"].Budget}
+			costCenterTotals["Transport & Shipping"] = struct{ Actual, Budget float64 }{costCenterTotals["Transport & Shipping"].Actual + actual.TransportShipping, costCenterTotals["Transport & Shipping"].Budget}
+		}
+		if budget != nil {
+			costCenterTotals["Mine"] = struct{ Actual, Budget float64 }{costCenterTotals["Mine"].Actual, costCenterTotals["Mine"].Budget + budget.Mine}
+			costCenterTotals["Processing"] = struct{ Actual, Budget float64 }{costCenterTotals["Processing"].Actual, costCenterTotals["Processing"].Budget + budget.Processing}
+			costCenterTotals["G&A"] = struct{ Actual, Budget float64 }{costCenterTotals["G&A"].Actual, costCenterTotals["G&A"].Budget + budget.GA}
+			costCenterTotals["Transport & Shipping"] = struct{ Actual, Budget float64 }{costCenterTotals["Transport & Shipping"].Actual, costCenterTotals["Transport & Shipping"].Budget + budget.TransportShipping}
+		}
+
+		var variance *OPEXVariance
+		if actual != nil && budget != nil {
+			variance = uc.calculateOPEXVariance(actual, budget)
+		}
+
+		months = append(months, OPEXMonthlyData{
+			Month:    monthKey,
+			Actual:   actual,
+			Budget:   budget,
+			Variance: variance,
+		})
+	}
+
+	// Build cost center aggregations
+	byCostCenter := make(map[string]OPEXCostCenterData)
+	for center, totals := range costCenterTotals {
+		byCostCenter[center] = OPEXCostCenterData{
+			CostCenter: center,
+			Actual:     totals.Actual,
+			Budget:     totals.Budget,
+			Variance:   VarianceMetric{Actual: totals.Actual, Budget: totals.Budget, Variance: totals.Actual - totals.Budget, VariancePct: calculateVariancePct(totals.Actual, totals.Budget)},
+		}
+	}
+
+	// Build subcategory aggregations (simplified - would need to aggregate from raw data)
+	bySubcategory := make(map[string]OPEXSubcategoryData)
+
+	return months, byCostCenter, bySubcategory
+}
+
+func (uc *detailUseCase) buildOPEXDetail(opexList []*data.OPEXData) *OPEXDetail {
+	if len(opexList) == 0 {
+		return nil
+	}
+
+	var mine, processing, ga, transport, inventory float64
+	bySubcategory := make(map[string]float64)
+
+	for _, opex := range opexList {
+		// Inventory variations handling
+		if opex.Subcategory == "Inventory Variation" || opex.Subcategory == "Stockpile/WIP" || opex.Subcategory == "Inventory Variations" {
+			inventory += opex.Amount
+			bySubcategory[opex.Subcategory] += opex.Amount
+			continue
+		}
+
+		bySubcategory[opex.Subcategory] += opex.Amount
+
+		switch opex.CostCenter {
+		case "Mine":
+			mine += opex.Amount
+		case "Processing":
+			processing += opex.Amount
+		case "G&A":
+			ga += opex.Amount
+		case "Transport & Shipping":
+			transport += opex.Amount
+		}
+	}
+
+	total := mine + processing + ga + transport + inventory
+
+	return &OPEXDetail{
+		Mine:                mine,
+		Processing:          processing,
+		GA:                  ga,
+		TransportShipping:   transport,
+		InventoryVariations: inventory,
+		Total:               total,
+		BySubcategory:       bySubcategory,
+		HasData:             true,
+	}
+}
+
+func (uc *detailUseCase) calculateOPEXVariance(actual, budget *OPEXDetail) *OPEXVariance {
+	return &OPEXVariance{
+		Mine:                VarianceMetric{Actual: actual.Mine, Budget: budget.Mine, Variance: actual.Mine - budget.Mine, VariancePct: calculateVariancePct(actual.Mine, budget.Mine)},
+		Processing:          VarianceMetric{Actual: actual.Processing, Budget: budget.Processing, Variance: actual.Processing - budget.Processing, VariancePct: calculateVariancePct(actual.Processing, budget.Processing)},
+		GA:                  VarianceMetric{Actual: actual.GA, Budget: budget.GA, Variance: actual.GA - budget.GA, VariancePct: calculateVariancePct(actual.GA, budget.GA)},
+		TransportShipping:   VarianceMetric{Actual: actual.TransportShipping, Budget: budget.TransportShipping, Variance: actual.TransportShipping - budget.TransportShipping, VariancePct: calculateVariancePct(actual.TransportShipping, budget.TransportShipping)},
+		InventoryVariations: VarianceMetric{Actual: actual.InventoryVariations, Budget: budget.InventoryVariations, Variance: actual.InventoryVariations - budget.InventoryVariations, VariancePct: calculateVariancePct(actual.InventoryVariations, budget.InventoryVariations)},
+		Total:               VarianceMetric{Actual: actual.Total, Budget: budget.Total, Variance: actual.Total - budget.Total, VariancePct: calculateVariancePct(actual.Total, budget.Total)},
+	}
+}
+
+// buildCAPEXMonthlyData builds CAPEX monthly data with variances and aggregations
+func (uc *detailUseCase) buildCAPEXMonthlyData(
+	year int,
+	capexActual, capexBudget []*data.CAPEXData,
+	monthsFilter map[int]bool,
+) ([]CAPEXMonthlyData, map[string]CAPEXTypeData, map[string]CAPEXCategoryData) {
+	capexActualByMonth := groupCAPEXByMonth(capexActual)
+	capexBudgetByMonth := groupCAPEXByMonth(capexBudget)
+
+	var months []CAPEXMonthlyData
+	typeTotals := make(map[string]struct{ Actual, Budget float64 })
+	categoryTotals := make(map[string]struct{ Actual, Budget float64 })
+
+	for month := 1; month <= 12; month++ {
+		if monthsFilter != nil && !monthsFilter[month] {
+			continue
+		}
+
+		monthKey := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC).Format("2006-01")
+
+		actual := uc.buildCAPEXDetail(capexActualByMonth[month])
+		budget := uc.buildCAPEXDetail(capexBudgetByMonth[month])
+
+		// Aggregate by type
+		if actual != nil {
+			typeTotals["sustaining"] = struct{ Actual, Budget float64 }{typeTotals["sustaining"].Actual + actual.Sustaining, typeTotals["sustaining"].Budget}
+			typeTotals["project"] = struct{ Actual, Budget float64 }{typeTotals["project"].Actual + actual.Project, typeTotals["project"].Budget}
+			typeTotals["leasing"] = struct{ Actual, Budget float64 }{typeTotals["leasing"].Actual + actual.Leasing, typeTotals["leasing"].Budget}
+		}
+		if budget != nil {
+			typeTotals["sustaining"] = struct{ Actual, Budget float64 }{typeTotals["sustaining"].Actual, typeTotals["sustaining"].Budget + budget.Sustaining}
+			typeTotals["project"] = struct{ Actual, Budget float64 }{typeTotals["project"].Actual, typeTotals["project"].Budget + budget.Project}
+			typeTotals["leasing"] = struct{ Actual, Budget float64 }{typeTotals["leasing"].Actual, typeTotals["leasing"].Budget + budget.Leasing}
+		}
+
+		// Aggregate by category (from raw data)
+		for _, capex := range capexActualByMonth[month] {
+			categoryTotals[capex.Category] = struct{ Actual, Budget float64 }{categoryTotals[capex.Category].Actual + capex.Amount, categoryTotals[capex.Category].Budget}
+		}
+		for _, capex := range capexBudgetByMonth[month] {
+			categoryTotals[capex.Category] = struct{ Actual, Budget float64 }{categoryTotals[capex.Category].Actual, categoryTotals[capex.Category].Budget + capex.Amount}
+		}
+
+		var variance *CAPEXVarianceDetail
+		if actual != nil && budget != nil {
+			variance = uc.calculateCAPEXVariance(actual, budget)
+		}
+
+		months = append(months, CAPEXMonthlyData{
+			Month:    monthKey,
+			Actual:   actual,
+			Budget:   budget,
+			Variance: variance,
+		})
+	}
+
+	// Build type aggregations
+	byType := make(map[string]CAPEXTypeData)
+	for t, totals := range typeTotals {
+		byType[t] = CAPEXTypeData{
+			Type:     t,
+			Actual:   totals.Actual,
+			Budget:   totals.Budget,
+			Variance: VarianceMetric{Actual: totals.Actual, Budget: totals.Budget, Variance: totals.Actual - totals.Budget, VariancePct: calculateVariancePct(totals.Actual, totals.Budget)},
+		}
+	}
+
+	// Build category aggregations
+	byCategory := make(map[string]CAPEXCategoryData)
+	for cat, totals := range categoryTotals {
+		byCategory[cat] = CAPEXCategoryData{
+			Category: cat,
+			Actual:   totals.Actual,
+			Budget:   totals.Budget,
+			Variance: VarianceMetric{Actual: totals.Actual, Budget: totals.Budget, Variance: totals.Actual - totals.Budget, VariancePct: calculateVariancePct(totals.Actual, totals.Budget)},
+		}
+	}
+
+	return months, byType, byCategory
+}
+
+func (uc *detailUseCase) buildCAPEXDetail(capexList []*data.CAPEXData) *CAPEXDetail {
+	if len(capexList) == 0 {
+		return nil
+	}
+
+	var sustaining, project, leasing, accretion float64
+
+	for _, capex := range capexList {
+		switch capex.Type {
+		case "sustaining":
+			sustaining += capex.Amount
+		case "project":
+			project += capex.Amount
+		case "leasing":
+			leasing += capex.Amount
+		}
+		// TODO: Add AccretionOfMineClosureLiability when field is added to CAPEXData
+		// For now, it's 0
+	}
+
+	total := sustaining + project + leasing + accretion
+
+	return &CAPEXDetail{
+		Sustaining:                      sustaining,
+		Project:                         project,
+		Leasing:                         leasing,
+		AccretionOfMineClosureLiability: accretion,
+		Total:                           total,
+		HasData:                         true,
+	}
+}
+
+func (uc *detailUseCase) calculateCAPEXVariance(actual, budget *CAPEXDetail) *CAPEXVarianceDetail {
+	return &CAPEXVarianceDetail{
+		Sustaining:                      VarianceMetric{Actual: actual.Sustaining, Budget: budget.Sustaining, Variance: actual.Sustaining - budget.Sustaining, VariancePct: calculateVariancePct(actual.Sustaining, budget.Sustaining)},
+		Project:                         VarianceMetric{Actual: actual.Project, Budget: budget.Project, Variance: actual.Project - budget.Project, VariancePct: calculateVariancePct(actual.Project, budget.Project)},
+		Leasing:                         VarianceMetric{Actual: actual.Leasing, Budget: budget.Leasing, Variance: actual.Leasing - budget.Leasing, VariancePct: calculateVariancePct(actual.Leasing, budget.Leasing)},
+		AccretionOfMineClosureLiability: VarianceMetric{Actual: actual.AccretionOfMineClosureLiability, Budget: budget.AccretionOfMineClosureLiability, Variance: actual.AccretionOfMineClosureLiability - budget.AccretionOfMineClosureLiability, VariancePct: calculateVariancePct(actual.AccretionOfMineClosureLiability, budget.AccretionOfMineClosureLiability)},
+		Total:                           VarianceMetric{Actual: actual.Total, Budget: budget.Total, Variance: actual.Total - budget.Total, VariancePct: calculateVariancePct(actual.Total, budget.Total)},
+	}
+}
+
+// buildFinancialMonthlyData builds Financial monthly data with variances
+func (uc *detailUseCase) buildFinancialMonthlyData(
+	year int,
+	financialActual, financialBudget []*data.FinancialData,
+	monthsFilter map[int]bool,
+) []FinancialMonthlyData {
+	financialActualByMonth := groupFinancialByMonth(financialActual)
+	financialBudgetByMonth := groupFinancialByMonth(financialBudget)
+
+	var months []FinancialMonthlyData
+
+	for month := 1; month <= 12; month++ {
+		if monthsFilter != nil && !monthsFilter[month] {
+			continue
+		}
+
+		monthKey := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC).Format("2006-01")
+
+		actual := uc.buildFinancialDetail(financialActualByMonth[month])
+		budget := uc.buildFinancialDetail(financialBudgetByMonth[month])
+
+		var variance *FinancialVariance
+		if actual != nil && budget != nil {
+			variance = uc.calculateFinancialVariance(actual, budget)
+		}
+
+		months = append(months, FinancialMonthlyData{
+			Month:    monthKey,
+			Actual:   actual,
+			Budget:   budget,
+			Variance: variance,
+		})
+	}
+
+	return months
+}
+
+func (uc *detailUseCase) buildFinancialDetail(financial *data.FinancialData) *FinancialDetail {
+	if financial == nil {
+		return nil
+	}
+
+	total := financial.ShippingSelling + financial.SalesTaxesRoyalties + financial.OtherAdjustments
+
+	return &FinancialDetail{
+		ShippingSelling:     financial.ShippingSelling,
+		SalesTaxesRoyalties: financial.SalesTaxesRoyalties,
+		OtherAdjustments:    financial.OtherAdjustments,
+		Total:               total,
+		HasData:             true,
+	}
+}
+
+func (uc *detailUseCase) calculateFinancialVariance(actual, budget *FinancialDetail) *FinancialVariance {
+	return &FinancialVariance{
+		ShippingSelling:     VarianceMetric{Actual: actual.ShippingSelling, Budget: budget.ShippingSelling, Variance: actual.ShippingSelling - budget.ShippingSelling, VariancePct: calculateVariancePct(actual.ShippingSelling, budget.ShippingSelling)},
+		SalesTaxesRoyalties: VarianceMetric{Actual: actual.SalesTaxesRoyalties, Budget: budget.SalesTaxesRoyalties, Variance: actual.SalesTaxesRoyalties - budget.SalesTaxesRoyalties, VariancePct: calculateVariancePct(actual.SalesTaxesRoyalties, budget.SalesTaxesRoyalties)},
+		OtherAdjustments:    VarianceMetric{Actual: actual.OtherAdjustments, Budget: budget.OtherAdjustments, Variance: actual.OtherAdjustments - budget.OtherAdjustments, VariancePct: calculateVariancePct(actual.OtherAdjustments, budget.OtherAdjustments)},
+		Total:               VarianceMetric{Actual: actual.Total, Budget: budget.Total, Variance: actual.Total - budget.Total, VariancePct: calculateVariancePct(actual.Total, budget.Total)},
+	}
+}
+
+// buildProductionMonthlyData builds Production monthly data with variances
+func (uc *detailUseCase) buildProductionMonthlyData(
+	year int,
+	pbrActual, pbrBudget []*data.PBRData,
+	productionActual, productionBudget []*data.ProductionData,
+	mineralMap map[int]struct{ Code, Name string },
+	monthsFilter map[int]bool,
+) ([]ProductionMonthlyData, map[string]ProductionMineralData) {
+	pbrActualByMonth := groupPBRByMonth(pbrActual)
+	pbrBudgetByMonth := groupPBRByMonth(pbrBudget)
+	productionActualByMonth := groupProductionByMonth(productionActual)
+	productionBudgetByMonth := groupProductionByMonth(productionBudget)
+
+	var months []ProductionMonthlyData
+	mineralTotals := make(map[string]struct {
+		MineralName string
+		Unit        string
+		Actual      float64
+		Budget      float64
+	})
+
+	for month := 1; month <= 12; month++ {
+		if monthsFilter != nil && !monthsFilter[month] {
+			continue
+		}
+
+		monthKey := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC).Format("2006-01")
+
+		actual := uc.buildProductionDetail(pbrActualByMonth[month], productionActualByMonth[month], mineralMap)
+		budget := uc.buildProductionDetail(pbrBudgetByMonth[month], productionBudgetByMonth[month], mineralMap)
+
+		// Aggregate by mineral
+		if actual != nil {
+			for code, qty := range actual.ByMineral {
+				if _, exists := mineralTotals[code]; !exists {
+					// Find mineral name from map (reverse lookup)
+					var mineralName string
+					for _, m := range mineralMap {
+						if m.Code == code {
+							mineralName = m.Name
+							break
+						}
+					}
+					if mineralName == "" {
+						mineralName = code
+					}
+					mineralTotals[code] = struct {
+						MineralName string
+						Unit        string
+						Actual      float64
+						Budget      float64
+					}{MineralName: mineralName, Unit: "", Actual: 0, Budget: 0}
+				}
+				totals := mineralTotals[code]
+				totals.Actual += qty
+				mineralTotals[code] = totals
+			}
+		}
+		if budget != nil {
+			for code, qty := range budget.ByMineral {
+				if _, exists := mineralTotals[code]; !exists {
+					// Find mineral name from map (reverse lookup)
+					var mineralName string
+					for _, m := range mineralMap {
+						if m.Code == code {
+							mineralName = m.Name
+							break
+						}
+					}
+					if mineralName == "" {
+						mineralName = code
+					}
+					mineralTotals[code] = struct {
+						MineralName string
+						Unit        string
+						Actual      float64
+						Budget      float64
+					}{MineralName: mineralName, Unit: "", Actual: 0, Budget: 0}
+				}
+				totals := mineralTotals[code]
+				totals.Budget += qty
+				mineralTotals[code] = totals
+			}
+		}
+
+		var variance *ProductionVarianceDetail
+		if actual != nil && budget != nil {
+			variance = uc.calculateProductionVariance(actual, budget)
+		}
+
+		months = append(months, ProductionMonthlyData{
+			Month:    monthKey,
+			Actual:   actual,
+			Budget:   budget,
+			Variance: variance,
+		})
+	}
+
+	// Build mineral aggregations
+	byMineral := make(map[string]ProductionMineralData)
+	for code, totals := range mineralTotals {
+		byMineral[code] = ProductionMineralData{
+			MineralCode: code,
+			MineralName: totals.MineralName,
+			Unit:        totals.Unit,
+			Actual:      totals.Actual,
+			Budget:      totals.Budget,
+			Variance:    VarianceMetric{Actual: totals.Actual, Budget: totals.Budget, Variance: totals.Actual - totals.Budget, VariancePct: calculateVariancePct(totals.Actual, totals.Budget)},
+		}
+	}
+
+	return months, byMineral
+}
+
+func (uc *detailUseCase) buildProductionDetail(pbr *data.PBRData, productionList []*data.ProductionData, mineralMap map[int]struct{ Code, Name string }) *ProductionDetail {
+	byMineral := make(map[string]float64)
+
+	// Add Silver and Gold from PBR
+	if pbr != nil {
+		silverOz := pbr.FeedGradeSilverGpt * pbr.TotalTonnesProcessed * (pbr.RecoveryRateSilverPct / 100) / 31.1035
+		goldOz := pbr.FeedGradeGoldGpt * pbr.TotalTonnesProcessed * (pbr.RecoveryRateGoldPct / 100) / 31.1035
+		byMineral["AG"] = silverOz
+		byMineral["AU"] = goldOz
+	}
+
+	// Add other minerals from ProductionData
+	for _, prod := range productionList {
+		if mineral, exists := mineralMap[prod.MineralID]; exists {
+			byMineral[mineral.Code] += prod.Quantity
+		}
+	}
+
+	hasData := pbr != nil || len(productionList) > 0
+
+	var silverOz, goldOz float64
+	if pbr != nil {
+		silverOz = pbr.FeedGradeSilverGpt * pbr.TotalTonnesProcessed * (pbr.RecoveryRateSilverPct / 100) / 31.1035
+		goldOz = pbr.FeedGradeGoldGpt * pbr.TotalTonnesProcessed * (pbr.RecoveryRateGoldPct / 100) / 31.1035
+	}
+
+	return &ProductionDetail{
+		TotalProductionSilverOz: silverOz,
+		TotalProductionGoldOz:   goldOz,
+		ByMineral:               byMineral,
+		HasData:                 hasData,
+	}
+}
+
+func (uc *detailUseCase) calculateProductionVariance(actual, budget *ProductionDetail) *ProductionVarianceDetail {
+	return &ProductionVarianceDetail{
+		TotalProductionSilverOz: VarianceMetric{Actual: actual.TotalProductionSilverOz, Budget: budget.TotalProductionSilverOz, Variance: actual.TotalProductionSilverOz - budget.TotalProductionSilverOz, VariancePct: calculateVariancePct(actual.TotalProductionSilverOz, budget.TotalProductionSilverOz)},
+		TotalProductionGoldOz:   VarianceMetric{Actual: actual.TotalProductionGoldOz, Budget: budget.TotalProductionGoldOz, Variance: actual.TotalProductionGoldOz - budget.TotalProductionGoldOz, VariancePct: calculateVariancePct(actual.TotalProductionGoldOz, budget.TotalProductionGoldOz)},
+	}
+}
+
+// buildRevenueMonthlyData builds Revenue monthly data with variances
+func (uc *detailUseCase) buildRevenueMonthlyData(
+	year int,
+	revenueActual, revenueBudget []*data.RevenueData,
+	mineralMap map[int]struct{ Code, Name string },
+	monthsFilter map[int]bool,
+) ([]RevenueMonthlyData, map[string]RevenueMineralData) {
+	revenueActualByMonth := groupRevenueByMonth(revenueActual)
+	revenueBudgetByMonth := groupRevenueByMonth(revenueBudget)
+
+	var months []RevenueMonthlyData
+	mineralTotals := make(map[string]struct {
+		MineralName string
+		Currency    string
+		Actual      float64
+		Budget      float64
+	})
+
+	for month := 1; month <= 12; month++ {
+		if monthsFilter != nil && !monthsFilter[month] {
+			continue
+		}
+
+		monthKey := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC).Format("2006-01")
+
+		actual := uc.buildRevenueDetail(revenueActualByMonth[month], mineralMap)
+		budget := uc.buildRevenueDetail(revenueBudgetByMonth[month], mineralMap)
+
+		// Aggregate by mineral
+		if actual != nil {
+			for code, detail := range actual.ByMineral {
+				if _, exists := mineralTotals[code]; !exists {
+					mineralTotals[code] = struct {
+						MineralName string
+						Currency    string
+						Actual      float64
+						Budget      float64
+					}{MineralName: detail.MineralName, Currency: detail.Currency, Actual: 0, Budget: 0}
+				}
+				totals := mineralTotals[code]
+				totals.Actual += detail.Revenue
+				mineralTotals[code] = totals
+			}
+		}
+		if budget != nil {
+			for code, detail := range budget.ByMineral {
+				if _, exists := mineralTotals[code]; !exists {
+					mineralTotals[code] = struct {
+						MineralName string
+						Currency    string
+						Actual      float64
+						Budget      float64
+					}{MineralName: detail.MineralName, Currency: detail.Currency, Actual: 0, Budget: 0}
+				}
+				totals := mineralTotals[code]
+				totals.Budget += detail.Revenue
+				mineralTotals[code] = totals
+			}
+		}
+
+		var variance *RevenueVariance
+		if actual != nil && budget != nil {
+			variance = uc.calculateRevenueVariance(actual, budget)
+		}
+
+		months = append(months, RevenueMonthlyData{
+			Month:    monthKey,
+			Actual:   actual,
+			Budget:   budget,
+			Variance: variance,
+		})
+	}
+
+	// Build mineral aggregations
+	byMineral := make(map[string]RevenueMineralData)
+	for code, totals := range mineralTotals {
+		byMineral[code] = RevenueMineralData{
+			MineralCode: code,
+			MineralName: totals.MineralName,
+			Currency:    totals.Currency,
+			Actual:      totals.Actual,
+			Budget:      totals.Budget,
+			Variance:    VarianceMetric{Actual: totals.Actual, Budget: totals.Budget, Variance: totals.Actual - totals.Budget, VariancePct: calculateVariancePct(totals.Actual, totals.Budget)},
+		}
+	}
+
+	return months, byMineral
+}
+
+func (uc *detailUseCase) buildRevenueDetail(revenueList []*data.RevenueData, mineralMap map[int]struct{ Code, Name string }) *RevenueDetail {
+	if len(revenueList) == 0 {
+		return nil
+	}
+
+	byMineral := make(map[string]RevenueMineralDetail)
+	var totalRevenue, totalQuantity float64
+
+	for _, rev := range revenueList {
+		var code, name string
+		if mineral, exists := mineralMap[rev.MineralID]; exists {
+			code = mineral.Code
+			name = mineral.Name
+		} else {
+			code = "UNKNOWN"
+			name = "Unknown Mineral"
+		}
+
+		revenue := rev.QuantitySold * rev.UnitPrice
+
+		if existing, exists := byMineral[code]; exists {
+			existing.QuantitySold += rev.QuantitySold
+			existing.Revenue += revenue
+			byMineral[code] = existing
+		} else {
+			byMineral[code] = RevenueMineralDetail{
+				MineralCode:  code,
+				MineralName:  name,
+				QuantitySold: rev.QuantitySold,
+				UnitPrice:    rev.UnitPrice,
+				Revenue:      revenue,
+				Currency:     rev.Currency,
+			}
+		}
+
+		totalRevenue += revenue
+		totalQuantity += rev.QuantitySold
+	}
+
+	var avgUnitPrice float64
+	if totalQuantity > 0 {
+		avgUnitPrice = totalRevenue / totalQuantity
+	}
+
+	return &RevenueDetail{
+		ByMineral:         byMineral,
+		TotalRevenue:      totalRevenue,
+		TotalQuantitySold: totalQuantity,
+		AverageUnitPrice:  avgUnitPrice,
+		HasData:           true,
+	}
+}
+
+func (uc *detailUseCase) calculateRevenueVariance(actual, budget *RevenueDetail) *RevenueVariance {
+	return &RevenueVariance{
+		TotalRevenue:      VarianceMetric{Actual: actual.TotalRevenue, Budget: budget.TotalRevenue, Variance: actual.TotalRevenue - budget.TotalRevenue, VariancePct: calculateVariancePct(actual.TotalRevenue, budget.TotalRevenue)},
+		TotalQuantitySold: VarianceMetric{Actual: actual.TotalQuantitySold, Budget: budget.TotalQuantitySold, Variance: actual.TotalQuantitySold - budget.TotalQuantitySold, VariancePct: calculateVariancePct(actual.TotalQuantitySold, budget.TotalQuantitySold)},
+		AverageUnitPrice:  VarianceMetric{Actual: actual.AverageUnitPrice, Budget: budget.AverageUnitPrice, Variance: actual.AverageUnitPrice - budget.AverageUnitPrice, VariancePct: calculateVariancePct(actual.AverageUnitPrice, budget.AverageUnitPrice)},
+	}
+}
+
+// Helper functions to group data by month (reuse from usecase.go)
+func groupProductionByMonth(records []*data.ProductionData) map[int][]*data.ProductionData {
+	grouped := make(map[int][]*data.ProductionData)
+	for _, r := range records {
+		month := int(r.Date.Month())
+		grouped[month] = append(grouped[month], r)
+	}
+	return grouped
+}
+
+func groupRevenueByMonth(records []*data.RevenueData) map[int][]*data.RevenueData {
+	grouped := make(map[int][]*data.RevenueData)
+	for _, r := range records {
+		month := int(r.Date.Month())
+		grouped[month] = append(grouped[month], r)
+	}
+	return grouped
+}

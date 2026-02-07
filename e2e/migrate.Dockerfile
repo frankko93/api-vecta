@@ -1,25 +1,14 @@
-FROM golang:1.25 AS src_migrate
+FROM postgres:17
 
-# Copy dependencies first to take advantage of Docker caching
-WORKDIR /go/src/app/
+WORKDIR /app
 
-COPY go.mod ./
-COPY go.sum ./
-RUN go mod download
+# Copy SQL schemas
+COPY database/schema.sql ./database/
+COPY database/config_schema.sql ./database/
+COPY database/data_schema.sql ./database/
 
-COPY . ./
+# Script to run migrations
+COPY e2e/run-migrations.sh ./
+RUN chmod +x ./run-migrations.sh
 
-ENV CGO_ENABLED=0
-
-RUN go build -ldflags="-s" -o ./migrate ./cmd/migrate/main.go;
-
-FROM gcr.io/distroless/static-debian12:nonroot
-
-LABEL com.gmhafiz.maintainers="User <author@example.com>"
-
-WORKDIR /usr/local/bin
-
-COPY --from=src_migrate /go/src/app/migrate .
-COPY e2e/.env .env
-
-CMD /usr/local/bin/migrate
+CMD ["./run-migrations.sh"]

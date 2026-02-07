@@ -1,0 +1,6 @@
+date,cost_center,subcategory,expense_type,amount,currency
+2025-03-15,Mine,Drilling,Labour,715000,USD
+2025-03-15,Mine,Blasting,Labour,605000,USD
+2025-03-15,Processing,CO General Operating,Labour,355000,USD
+2025-03-15,G&A,General Administration,Third Party,405000,USD
+2025-03-15,Mine,Inventory Variations,Other,1690000,USD

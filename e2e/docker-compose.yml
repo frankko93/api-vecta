@@ -22,21 +22,18 @@ services:
       dockerfile: e2e/server.Dockerfile
     entrypoint: ["/usr/local/bin/server"]
     environment:
+      - DB_DRIVER=postgres
+      - DB_HOST=postgres
+      - DB_PORT=5432
       - DB_USER=go8_e2e_user
       - DB_PASS=go8_e2e_pass
       - DB_NAME=go8_e2e_db
-      - REDIS_HOST=valkey
+      - DB_SSLMODE=disable
+      - API_HOST=server
+      - API_PORT=3080
     depends_on:
       - postgres
       - migrate
-      - valkey
-
-  valkey:
-    image: 'valkey/valkey:7.2'
-    container_name: "go8_redis_e2e"
-    restart: "no"
-    environment:
-      - ALLOW_EMPTY_PASSWORD=yes
 
   migrate:
     image: "go8/migrate"
@@ -45,11 +42,14 @@ services:
     build:
       context: ../
       dockerfile: e2e/migrate.Dockerfile
-    entrypoint: ["/usr/local/bin/migrate"]
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        psql -h postgres -U go8_e2e_user -d go8_e2e_db -f /app/database/schema.sql
+        psql -h postgres -U go8_e2e_user -d go8_e2e_db -f /app/database/config_schema.sql
+        psql -h postgres -U go8_e2e_user -d go8_e2e_db -f /app/database/data_schema.sql
     environment:
-      - DB_USER=go8_e2e_user
-      - DB_PASS=go8_e2e_pass
-      - DB_NAME=go8_e2e_db
+      - PGPASSWORD=go8_e2e_pass
     depends_on:
       - postgres
 
@@ -62,9 +62,8 @@ services:
       dockerfile: e2e/e2e.Dockerfile
     entrypoint: ["/usr/local/bin/end_to_end"]
     environment:
-      - DB_USER=go8_e2e_user
-      - DB_PASS=go8_e2e_pass
-      - DB_NAME=go8_e2e_db
+      - API_HOST=server
+      - API_PORT=3080
     depends_on:
       - postgres
       - migrate

@@ -9,7 +9,6 @@ import (
 	_ "github.com/lib/pq"
 
 	"github.com/gmhafiz/go8/config"
-	_ "github.com/gmhafiz/go8/ent/gen/runtime"
 	"github.com/gmhafiz/go8/internal/utility/database"
 )
 

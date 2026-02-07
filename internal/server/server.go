@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log"
 	"log/slog"
@@ -18,10 +17,6 @@ import (
 	"syscall"
 	"time"
 
-	"entgo.io/ent"
-	"entgo.io/ent/dialect"
-	entsql "entgo.io/ent/dialect/sql"
-	"github.com/gmhafiz/scs/v2"
 	"github.com/go-chi/chi/v5"
 	chiMiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-playground/validator/v10"
@@ -29,23 +24,14 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/jwalton/gchalk"
 	_ "github.com/lib/pq"
-	"github.com/redis/go-redis/extra/redisotel/v9"
-	"github.com/redis/go-redis/v9"
 	"github.com/rs/cors"
-	"go.nhat.io/otelsql"
-	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 	"golang.org/x/mod/modfile"
 
 	"github.com/gmhafiz/go8/config"
-	"github.com/gmhafiz/go8/database"
-	"github.com/gmhafiz/go8/logger"
-	"github.com/gmhafiz/go8/third_party/otlp"
-	//_ "github.com/gmhafiz/go8/docs"
-	"github.com/gmhafiz/go8/ent/gen"
+	authRepo "github.com/gmhafiz/go8/internal/domain/auth/repository"
 	"github.com/gmhafiz/go8/internal/middleware"
+	"github.com/gmhafiz/go8/logger"
 	db "github.com/gmhafiz/go8/third_party/database"
-	"github.com/gmhafiz/go8/third_party/postgresstore"
-	redisLib "github.com/gmhafiz/go8/third_party/redis"
 	"github.com/gmhafiz/go8/third_party/validate"
 )
 
@@ -55,15 +41,8 @@ type Server struct {
 
 	db   *sql.DB
 	sqlx *sqlx.DB
-	ent  *gen.Client
 
-	cache   *redis.Client
-	cluster *redis.ClusterClient
-
-	session       *scs.SessionManager
-	sessionCloser *postgresstore.PostgresStore
-
-	otlp *middleware.Config
+	authRepo authRepo.Repository
 
 	validator *validator.Validate
 	cors      *cors.Cors
@@ -104,11 +83,8 @@ func defaultServer() *Server {
 func (s *Server) Init() {
 	s.initLog()
 	s.setCors()
-	s.newOpenTelemetry()
-	s.newRedis()
 	s.NewDatabase()
 	s.newValidator()
-	s.newAuthentication()
 	s.newRouter()
 	s.setGlobalMiddleware()
 	s.InitDomains()
@@ -138,44 +114,6 @@ func (s *Server) setCors() {
 		})
 }
 
-func (s *Server) newOpenTelemetry() {
-	ctx := context.Background()
-
-	otlpConfig := s.cfg.OpenTelemetry
-
-	if !otlpConfig.Enable {
-		log.Println("not enabling otlp")
-		return
-	}
-
-	log.Println("connecting to otlp...")
-
-	shutdown := otlp.SetupOTLPExporter(ctx, s.cfg.OpenTelemetry)
-
-	s.otlp = &middleware.Config{
-		Cancel: shutdown,
-	}
-}
-
-func (s *Server) newRedis() {
-	if !s.cfg.Cache.Enable {
-		return
-	}
-
-	if len(s.cfg.Cache.Hosts) > 0 {
-		s.cluster = redisLib.NewCluster(s.cfg.Cache)
-	} else {
-		s.cache = redisLib.New(s.cfg.Cache)
-
-		if err := redisotel.InstrumentTracing(s.cache); err != nil {
-			panic(err)
-		}
-		if err := redisotel.InstrumentMetrics(s.cache); err != nil {
-			panic(err)
-		}
-	}
-}
-
 func (s *Server) NewDatabase() {
 	if s.cfg.Database.Driver == "" {
 		log.Fatal("please fill in database credentials in .env file or set in environment variable")
@@ -186,38 +124,11 @@ func (s *Server) NewDatabase() {
 	s.sqlx.SetMaxIdleConns(s.cfg.Database.MaxIdleConnections)
 	s.sqlx.SetConnMaxLifetime(s.cfg.Database.ConnectionsMaxLifeTime)
 
-	dsn := fmt.Sprintf("postgres://%s:%d/%s?sslmode=%s&user=%s&password=%s",
-		s.cfg.Database.Host,
-		s.cfg.Database.Port,
-		s.cfg.Database.Name,
-		s.cfg.Database.SslMode,
-		s.cfg.Database.User,
-		s.cfg.Database.Pass,
-	)
 	s.db = s.sqlx.DB
-	s.newEnt(dsn)
 }
 
 func (s *Server) newValidator() {
 	s.validator = validate.New()
-}
-
-func (s *Server) newAuthentication() {
-	manager := scs.New()
-	manager.Store = postgresstore.New(s.sqlx.DB)
-	manager.CtxStore = postgresstore.New(s.sqlx.DB)
-	manager.Lifetime = s.cfg.Session.Duration
-	manager.Cookie.Name = s.cfg.Session.Name
-	manager.Cookie.Domain = s.cfg.Session.Domain
-	manager.Cookie.HttpOnly = s.cfg.Session.HTTPOnly
-	manager.Cookie.Path = s.cfg.Session.Path
-	manager.Cookie.Persist = true
-	manager.Cookie.SameSite = http.SameSite(s.cfg.Session.SameSite)
-	manager.Cookie.Secure = s.cfg.Session.Secure
-
-	s.sessionCloser = postgresstore.NewWithCleanupInterval(s.sqlx.DB, 30*time.Minute)
-
-	s.session = manager
 }
 
 func (s *Server) newRouter() {
@@ -231,45 +142,11 @@ func (s *Server) setGlobalMiddleware() {
 		_, _ = w.Write([]byte(`{"message": "endpoint not found"}`))
 	})
 	s.router.Use(s.cors.Handler)
-	s.router.Use(middleware.Otlp(s.cfg.OpenTelemetry.Enable))
 	s.router.Use(middleware.JSON)
-	s.router.Use(middleware.LoadAndSave(s.session))
-	s.router.Use(middleware.Audit)
 	if s.cfg.API.RequestLog {
 		s.router.Use(chiMiddleware.Logger)
 	}
 	s.router.Use(middleware.Recovery)
-}
-
-func (s *Server) Migrate() {
-	log.Println("migrating...")
-
-	var databaseURL string
-	switch s.cfg.Database.Driver {
-	case "postgres":
-		databaseURL = fmt.Sprintf("%s://%s:%s@%s:%d/%s?sslmode=%s",
-			s.cfg.Database.Driver,
-			s.cfg.Database.User,
-			s.cfg.Database.Pass,
-			s.cfg.Database.Host,
-			s.cfg.Database.Port,
-			s.cfg.Database.Name,
-			s.cfg.Database.SslMode,
-		)
-	case "mysql":
-		databaseURL = fmt.Sprintf("%s:%s@(%s:%d)/%s?parseTime=true",
-			s.cfg.Database.User,
-			s.cfg.Database.Pass,
-			s.cfg.Database.Host,
-			s.cfg.Database.Port,
-			s.cfg.Database.Name,
-		)
-	}
-
-	migrator := database.Migrator(s.db, database.WithDSN(databaseURL))
-	migrator.Up()
-
-	log.Println("done migration.")
 }
 
 func (s *Server) Run() {
@@ -340,45 +217,6 @@ func (s *Server) PrintAllRegisteredRoutes(exceptions ...string) {
 		fmt.Printf("%s", gchalk.Green(fmt.Sprintf("%-8s", "GET")))
 		fmt.Printf("/swagger\n")
 	}
-}
-
-func (s *Server) newEnt(dsn string) {
-	driverName, err := otelsql.Register(dialect.Postgres,
-		otelsql.AllowRoot(),
-		otelsql.TraceQueryWithoutArgs(),
-		otelsql.WithSystem(semconv.DBSystemPostgreSQL),
-	)
-	if err != nil {
-		log.Println(err)
-	}
-	otelDB, err := sql.Open(driverName, dsn)
-	if err != nil {
-		log.Println(err)
-	}
-	drv := entsql.OpenDB(dialect.Postgres, otelDB)
-	client := gen.NewClient(gen.Driver(drv))
-
-	client.Use(func(next ent.Mutator) ent.Mutator {
-		return ent.MutateFunc(func(ctx context.Context, mutation ent.Mutation) (ent.Value, error) {
-			meta, ok := ctx.Value(middleware.KeyAuditID).(middleware.Event)
-			if !ok {
-				return next.Mutate(ctx, mutation)
-			}
-
-			val, err := next.Mutate(ctx, mutation)
-
-			meta.Table = mutation.Type()
-			meta.Action = middleware.Action(mutation.Op().String())
-
-			newValues, _ := json.Marshal(val)
-			meta.NewValues = string(newValues)
-			log.Println(meta)
-
-			return val, err
-		})
-	})
-
-	s.ent = client
 }
 
 // StrPad returns the input string padded on the left, right or both sides using padType to the specified padding length padLength.
@@ -484,9 +322,4 @@ func gracefulShutdown(ctx context.Context, s *Server) error {
 
 func (s *Server) closeResources(ctx context.Context) {
 	_ = s.sqlx.Close()
-	_ = s.ent.Close()
-	s.cluster.Shutdown(ctx)
-	s.cache.Shutdown(ctx)
-	s.sessionCloser.StopCleanup()
-	defer s.otlp.Cancel()
 }
