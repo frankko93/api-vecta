@@ -1,12 +1,445 @@
 date,cost_center,subcategory,expense_type,amount,currency
-2025-01-01,Mine,Drilling,Labour,680000,USD
-2025-01-01,Mine,Blasting,Labour,580000,USD
-2025-01-01,Processing,CO General Operating,Labour,320000,USD
-2025-01-01,G&A,General Administration,Third Party,350000,USD
-2025-01-01,Mine,Inventory Variations,Other,603581,USD
-2025-02-01,Mine,Drilling,Labour,685000,USD
-2025-02-01,Processing,CO General Operating,Labour,325000,USD
-2025-02-01,G&A,General Administration,Third Party,355000,USD
-2025-03-01,Mine,Drilling,Labour,690000,USD
-2025-03-01,Processing,CO General Operating,Labour,330000,USD
-2025-03-01,G&A,General Administration,Third Party,360000,USD
+2025-01-01,Mine,Drilling,Labour,1536353,USD
+2025-01-01,Mine,Blasting,Labour,1027840,USD
+2025-01-01,Mine,Loading,Labour,620478,USD
+2025-01-01,Mine,Hauling,Labour,999752,USD
+2025-01-01,Mine,Ground Support,Labour,826390,USD
+2025-01-01,Mine,Mine Services,Materials,405349,USD
+2025-01-01,Mine,Mine Geology,Labour,373433,USD
+2025-01-01,Mine,Mine Engineering,Labour,396466,USD
+2025-01-01,Mine,Mine Maintenance,Materials,968061,USD
+2025-01-01,Mine,General Operating,Other,1383876,USD
+2025-01-01,Processing,CO General Operating,Labour,338318,USD
+2025-01-01,Processing,CO Primary Crushing,Labour,338119,USD
+2025-01-01,Processing,CO Grinding and Classifying,Labour,386865,USD
+2025-01-01,Processing,CO Regrinding and Flotation,Labour,256661,USD
+2025-01-01,Processing,CO Thickening and Filtering,Labour,116097,USD
+2025-01-01,Processing,CO Tailing Disposal,Materials,179333,USD
+2025-01-01,Processing,CO Sampling and Assaying,Materials,456318,USD
+2025-01-01,Processing,CO Plant Maintenance,Materials,744675,USD
+2025-01-01,Processing,PR Leaching,Materials,445046,USD
+2025-01-01,Processing,PR Refining,Materials,352245,USD
+2025-01-01,G&A,General Administration,Third Party,568217,USD
+2025-01-01,G&A,Maintenance Shops (Overhead),Labour,241787,USD
+2025-01-01,G&A,Warehouse,Labour,374376,USD
+2025-01-01,G&A,Purchasing,Labour,207287,USD
+2025-01-01,G&A,Safety,Labour,492813,USD
+2025-01-01,G&A,Security,Third Party,333262,USD
+2025-01-01,G&A,Legal,Third Party,1638,USD
+2025-01-01,G&A,Environmental Services,Labour,150525,USD
+2025-01-01,G&A,Camp,Third Party,1460458,USD
+2025-01-01,G&A,Public Community Relations,Other,346944,USD
+2025-01-01,G&A,Human Resources,Labour,106843,USD
+2025-01-01,G&A,New Business / Project Development,Third Party,797554,USD
+2025-01-01,G&A,Financings & Cost,Other,110638,USD
+2025-01-01,G&A,Information Systems,Materials,105692,USD
+2025-01-01,G&A,Contract Administration,Labour,23862,USD
+2025-01-01,G&A,Other Indirect,Other,149824,USD
+2025-01-01,Mine,Stockpile/WIP,Other,1740162,USD
+2025-02-01,Mine,Drilling,Labour,1536353,USD
+2025-02-01,Mine,Blasting,Labour,1027840,USD
+2025-02-01,Mine,Loading,Labour,620478,USD
+2025-02-01,Mine,Hauling,Labour,999752,USD
+2025-02-01,Mine,Ground Support,Labour,826390,USD
+2025-02-01,Mine,Mine Services,Materials,405349,USD
+2025-02-01,Mine,Mine Geology,Labour,373433,USD
+2025-02-01,Mine,Mine Engineering,Labour,396466,USD
+2025-02-01,Mine,Mine Maintenance,Materials,968061,USD
+2025-02-01,Mine,General Operating,Other,1383876,USD
+2025-02-01,Processing,CO General Operating,Labour,338318,USD
+2025-02-01,Processing,CO Primary Crushing,Labour,338119,USD
+2025-02-01,Processing,CO Grinding and Classifying,Labour,386865,USD
+2025-02-01,Processing,CO Regrinding and Flotation,Labour,256661,USD
+2025-02-01,Processing,CO Thickening and Filtering,Labour,116097,USD
+2025-02-01,Processing,CO Tailing Disposal,Materials,179333,USD
+2025-02-01,Processing,CO Sampling and Assaying,Materials,456318,USD
+2025-02-01,Processing,CO Plant Maintenance,Materials,744675,USD
+2025-02-01,Processing,PR Leaching,Materials,445046,USD
+2025-02-01,Processing,PR Refining,Materials,352245,USD
+2025-02-01,G&A,General Administration,Third Party,568217,USD
+2025-02-01,G&A,Maintenance Shops (Overhead),Labour,241787,USD
+2025-02-01,G&A,Warehouse,Labour,374376,USD
+2025-02-01,G&A,Purchasing,Labour,207287,USD
+2025-02-01,G&A,Safety,Labour,492813,USD
+2025-02-01,G&A,Security,Third Party,333262,USD
+2025-02-01,G&A,Legal,Third Party,1638,USD
+2025-02-01,G&A,Environmental Services,Labour,150525,USD
+2025-02-01,G&A,Camp,Third Party,1460458,USD
+2025-02-01,G&A,Public Community Relations,Other,346944,USD
+2025-02-01,G&A,Human Resources,Labour,106843,USD
+2025-02-01,G&A,New Business / Project Development,Third Party,797554,USD
+2025-02-01,G&A,Financings & Cost,Other,110638,USD
+2025-02-01,G&A,Information Systems,Materials,105692,USD
+2025-02-01,G&A,Contract Administration,Labour,23862,USD
+2025-02-01,G&A,Other Indirect,Other,149824,USD
+2025-02-01,Mine,Stockpile/WIP,Other,1740162,USD
+2025-03-01,Mine,Drilling,Labour,1536353,USD
+2025-03-01,Mine,Blasting,Labour,1027840,USD
+2025-03-01,Mine,Loading,Labour,620478,USD
+2025-03-01,Mine,Hauling,Labour,999752,USD
+2025-03-01,Mine,Ground Support,Labour,826390,USD
+2025-03-01,Mine,Mine Services,Materials,405349,USD
+2025-03-01,Mine,Mine Geology,Labour,373433,USD
+2025-03-01,Mine,Mine Engineering,Labour,396466,USD
+2025-03-01,Mine,Mine Maintenance,Materials,968061,USD
+2025-03-01,Mine,General Operating,Other,1383876,USD
+2025-03-01,Processing,CO General Operating,Labour,338318,USD
+2025-03-01,Processing,CO Primary Crushing,Labour,338119,USD
+2025-03-01,Processing,CO Grinding and Classifying,Labour,386865,USD
+2025-03-01,Processing,CO Regrinding and Flotation,Labour,256661,USD
+2025-03-01,Processing,CO Thickening and Filtering,Labour,116097,USD
+2025-03-01,Processing,CO Tailing Disposal,Materials,179333,USD
+2025-03-01,Processing,CO Sampling and Assaying,Materials,456318,USD
+2025-03-01,Processing,CO Plant Maintenance,Materials,744675,USD
+2025-03-01,Processing,PR Leaching,Materials,445046,USD
+2025-03-01,Processing,PR Refining,Materials,352245,USD
+2025-03-01,G&A,General Administration,Third Party,568217,USD
+2025-03-01,G&A,Maintenance Shops (Overhead),Labour,241787,USD
+2025-03-01,G&A,Warehouse,Labour,374376,USD
+2025-03-01,G&A,Purchasing,Labour,207287,USD
+2025-03-01,G&A,Safety,Labour,492813,USD
+2025-03-01,G&A,Security,Third Party,333262,USD
+2025-03-01,G&A,Legal,Third Party,1638,USD
+2025-03-01,G&A,Environmental Services,Labour,150525,USD
+2025-03-01,G&A,Camp,Third Party,1460458,USD
+2025-03-01,G&A,Public Community Relations,Other,346944,USD
+2025-03-01,G&A,Human Resources,Labour,106843,USD
+2025-03-01,G&A,New Business / Project Development,Third Party,797554,USD
+2025-03-01,G&A,Financings & Cost,Other,110638,USD
+2025-03-01,G&A,Information Systems,Materials,105692,USD
+2025-03-01,G&A,Contract Administration,Labour,23862,USD
+2025-03-01,G&A,Other Indirect,Other,149824,USD
+2025-03-01,Mine,Stockpile/WIP,Other,1740162,USD
+2025-04-01,Mine,Drilling,Labour,1536353,USD
+2025-04-01,Mine,Blasting,Labour,1027840,USD
+2025-04-01,Mine,Loading,Labour,620478,USD
+2025-04-01,Mine,Hauling,Labour,999752,USD
+2025-04-01,Mine,Ground Support,Labour,826390,USD
+2025-04-01,Mine,Mine Services,Materials,405349,USD
+2025-04-01,Mine,Mine Geology,Labour,373433,USD
+2025-04-01,Mine,Mine Engineering,Labour,396466,USD
+2025-04-01,Mine,Mine Maintenance,Materials,968061,USD
+2025-04-01,Mine,General Operating,Other,1383876,USD
+2025-04-01,Processing,CO General Operating,Labour,338318,USD
+2025-04-01,Processing,CO Primary Crushing,Labour,338119,USD
+2025-04-01,Processing,CO Grinding and Classifying,Labour,386865,USD
+2025-04-01,Processing,CO Regrinding and Flotation,Labour,256661,USD
+2025-04-01,Processing,CO Thickening and Filtering,Labour,116097,USD
+2025-04-01,Processing,CO Tailing Disposal,Materials,179333,USD
+2025-04-01,Processing,CO Sampling and Assaying,Materials,456318,USD
+2025-04-01,Processing,CO Plant Maintenance,Materials,744675,USD
+2025-04-01,Processing,PR Leaching,Materials,445046,USD
+2025-04-01,Processing,PR Refining,Materials,352245,USD
+2025-04-01,G&A,General Administration,Third Party,568217,USD
+2025-04-01,G&A,Maintenance Shops (Overhead),Labour,241787,USD
+2025-04-01,G&A,Warehouse,Labour,374376,USD
+2025-04-01,G&A,Purchasing,Labour,207287,USD
+2025-04-01,G&A,Safety,Labour,492813,USD
+2025-04-01,G&A,Security,Third Party,333262,USD
+2025-04-01,G&A,Legal,Third Party,1638,USD
+2025-04-01,G&A,Environmental Services,Labour,150525,USD
+2025-04-01,G&A,Camp,Third Party,1460458,USD
+2025-04-01,G&A,Public Community Relations,Other,346944,USD
+2025-04-01,G&A,Human Resources,Labour,106843,USD
+2025-04-01,G&A,New Business / Project Development,Third Party,797554,USD
+2025-04-01,G&A,Financings & Cost,Other,110638,USD
+2025-04-01,G&A,Information Systems,Materials,105692,USD
+2025-04-01,G&A,Contract Administration,Labour,23862,USD
+2025-04-01,G&A,Other Indirect,Other,149824,USD
+2025-04-01,Mine,Stockpile/WIP,Other,1740162,USD
+2025-05-01,Mine,Drilling,Labour,1536353,USD
+2025-05-01,Mine,Blasting,Labour,1027840,USD
+2025-05-01,Mine,Loading,Labour,620478,USD
+2025-05-01,Mine,Hauling,Labour,999752,USD
+2025-05-01,Mine,Ground Support,Labour,826390,USD
+2025-05-01,Mine,Mine Services,Materials,405349,USD
+2025-05-01,Mine,Mine Geology,Labour,373433,USD
+2025-05-01,Mine,Mine Engineering,Labour,396466,USD
+2025-05-01,Mine,Mine Maintenance,Materials,968061,USD
+2025-05-01,Mine,General Operating,Other,1383876,USD
+2025-05-01,Processing,CO General Operating,Labour,338318,USD
+2025-05-01,Processing,CO Primary Crushing,Labour,338119,USD
+2025-05-01,Processing,CO Grinding and Classifying,Labour,386865,USD
+2025-05-01,Processing,CO Regrinding and Flotation,Labour,256661,USD
+2025-05-01,Processing,CO Thickening and Filtering,Labour,116097,USD
+2025-05-01,Processing,CO Tailing Disposal,Materials,179333,USD
+2025-05-01,Processing,CO Sampling and Assaying,Materials,456318,USD
+2025-05-01,Processing,CO Plant Maintenance,Materials,744675,USD
+2025-05-01,Processing,PR Leaching,Materials,445046,USD
+2025-05-01,Processing,PR Refining,Materials,352245,USD
+2025-05-01,G&A,General Administration,Third Party,568217,USD
+2025-05-01,G&A,Maintenance Shops (Overhead),Labour,241787,USD
+2025-05-01,G&A,Warehouse,Labour,374376,USD
+2025-05-01,G&A,Purchasing,Labour,207287,USD
+2025-05-01,G&A,Safety,Labour,492813,USD
+2025-05-01,G&A,Security,Third Party,333262,USD
+2025-05-01,G&A,Legal,Third Party,1638,USD
+2025-05-01,G&A,Environmental Services,Labour,150525,USD
+2025-05-01,G&A,Camp,Third Party,1460458,USD
+2025-05-01,G&A,Public Community Relations,Other,346944,USD
+2025-05-01,G&A,Human Resources,Labour,106843,USD
+2025-05-01,G&A,New Business / Project Development,Third Party,797554,USD
+2025-05-01,G&A,Financings & Cost,Other,110638,USD
+2025-05-01,G&A,Information Systems,Materials,105692,USD
+2025-05-01,G&A,Contract Administration,Labour,23862,USD
+2025-05-01,G&A,Other Indirect,Other,149824,USD
+2025-05-01,Mine,Stockpile/WIP,Other,1740162,USD
+2025-06-01,Mine,Drilling,Labour,1536353,USD
+2025-06-01,Mine,Blasting,Labour,1027840,USD
+2025-06-01,Mine,Loading,Labour,620478,USD
+2025-06-01,Mine,Hauling,Labour,999752,USD
+2025-06-01,Mine,Ground Support,Labour,826390,USD
+2025-06-01,Mine,Mine Services,Materials,405349,USD
+2025-06-01,Mine,Mine Geology,Labour,373433,USD
+2025-06-01,Mine,Mine Engineering,Labour,396466,USD
+2025-06-01,Mine,Mine Maintenance,Materials,968061,USD
+2025-06-01,Mine,General Operating,Other,1383876,USD
+2025-06-01,Processing,CO General Operating,Labour,338318,USD
+2025-06-01,Processing,CO Primary Crushing,Labour,338119,USD
+2025-06-01,Processing,CO Grinding and Classifying,Labour,386865,USD
+2025-06-01,Processing,CO Regrinding and Flotation,Labour,256661,USD
+2025-06-01,Processing,CO Thickening and Filtering,Labour,116097,USD
+2025-06-01,Processing,CO Tailing Disposal,Materials,179333,USD
+2025-06-01,Processing,CO Sampling and Assaying,Materials,456318,USD
+2025-06-01,Processing,CO Plant Maintenance,Materials,744675,USD
+2025-06-01,Processing,PR Leaching,Materials,445046,USD
+2025-06-01,Processing,PR Refining,Materials,352245,USD
+2025-06-01,G&A,General Administration,Third Party,568217,USD
+2025-06-01,G&A,Maintenance Shops (Overhead),Labour,241787,USD
+2025-06-01,G&A,Warehouse,Labour,374376,USD
+2025-06-01,G&A,Purchasing,Labour,207287,USD
+2025-06-01,G&A,Safety,Labour,492813,USD
+2025-06-01,G&A,Security,Third Party,333262,USD
+2025-06-01,G&A,Legal,Third Party,1638,USD
+2025-06-01,G&A,Environmental Services,Labour,150525,USD
+2025-06-01,G&A,Camp,Third Party,1460458,USD
+2025-06-01,G&A,Public Community Relations,Other,346944,USD
+2025-06-01,G&A,Human Resources,Labour,106843,USD
+2025-06-01,G&A,New Business / Project Development,Third Party,797554,USD
+2025-06-01,G&A,Financings & Cost,Other,110638,USD
+2025-06-01,G&A,Information Systems,Materials,105692,USD
+2025-06-01,G&A,Contract Administration,Labour,23862,USD
+2025-06-01,G&A,Other Indirect,Other,149824,USD
+2025-06-01,Mine,Stockpile/WIP,Other,1740162,USD
+2025-07-01,Mine,Drilling,Labour,1536353,USD
+2025-07-01,Mine,Blasting,Labour,1027840,USD
+2025-07-01,Mine,Loading,Labour,620478,USD
+2025-07-01,Mine,Hauling,Labour,999752,USD
+2025-07-01,Mine,Ground Support,Labour,826390,USD
+2025-07-01,Mine,Mine Services,Materials,405349,USD
+2025-07-01,Mine,Mine Geology,Labour,373433,USD
+2025-07-01,Mine,Mine Engineering,Labour,396466,USD
+2025-07-01,Mine,Mine Maintenance,Materials,968061,USD
+2025-07-01,Mine,General Operating,Other,1383876,USD
+2025-07-01,Processing,CO General Operating,Labour,338318,USD
+2025-07-01,Processing,CO Primary Crushing,Labour,338119,USD
+2025-07-01,Processing,CO Grinding and Classifying,Labour,386865,USD
+2025-07-01,Processing,CO Regrinding and Flotation,Labour,256661,USD
+2025-07-01,Processing,CO Thickening and Filtering,Labour,116097,USD
+2025-07-01,Processing,CO Tailing Disposal,Materials,179333,USD
+2025-07-01,Processing,CO Sampling and Assaying,Materials,456318,USD
+2025-07-01,Processing,CO Plant Maintenance,Materials,744675,USD
+2025-07-01,Processing,PR Leaching,Materials,445046,USD
+2025-07-01,Processing,PR Refining,Materials,352245,USD
+2025-07-01,G&A,General Administration,Third Party,568217,USD
+2025-07-01,G&A,Maintenance Shops (Overhead),Labour,241787,USD
+2025-07-01,G&A,Warehouse,Labour,374376,USD
+2025-07-01,G&A,Purchasing,Labour,207287,USD
+2025-07-01,G&A,Safety,Labour,492813,USD
+2025-07-01,G&A,Security,Third Party,333262,USD
+2025-07-01,G&A,Legal,Third Party,1638,USD
+2025-07-01,G&A,Environmental Services,Labour,150525,USD
+2025-07-01,G&A,Camp,Third Party,1460458,USD
+2025-07-01,G&A,Public Community Relations,Other,346944,USD
+2025-07-01,G&A,Human Resources,Labour,106843,USD
+2025-07-01,G&A,New Business / Project Development,Third Party,797554,USD
+2025-07-01,G&A,Financings & Cost,Other,110638,USD
+2025-07-01,G&A,Information Systems,Materials,105692,USD
+2025-07-01,G&A,Contract Administration,Labour,23862,USD
+2025-07-01,G&A,Other Indirect,Other,149824,USD
+2025-07-01,Mine,Stockpile/WIP,Other,1740162,USD
+2025-08-01,Mine,Drilling,Labour,1536353,USD
+2025-08-01,Mine,Blasting,Labour,1027840,USD
+2025-08-01,Mine,Loading,Labour,620478,USD
+2025-08-01,Mine,Hauling,Labour,999752,USD
+2025-08-01,Mine,Ground Support,Labour,826390,USD
+2025-08-01,Mine,Mine Services,Materials,405349,USD
+2025-08-01,Mine,Mine Geology,Labour,373433,USD
+2025-08-01,Mine,Mine Engineering,Labour,396466,USD
+2025-08-01,Mine,Mine Maintenance,Materials,968061,USD
+2025-08-01,Mine,General Operating,Other,1383876,USD
+2025-08-01,Processing,CO General Operating,Labour,338318,USD
+2025-08-01,Processing,CO Primary Crushing,Labour,338119,USD
+2025-08-01,Processing,CO Grinding and Classifying,Labour,386865,USD
+2025-08-01,Processing,CO Regrinding and Flotation,Labour,256661,USD
+2025-08-01,Processing,CO Thickening and Filtering,Labour,116097,USD
+2025-08-01,Processing,CO Tailing Disposal,Materials,179333,USD
+2025-08-01,Processing,CO Sampling and Assaying,Materials,456318,USD
+2025-08-01,Processing,CO Plant Maintenance,Materials,744675,USD
+2025-08-01,Processing,PR Leaching,Materials,445046,USD
+2025-08-01,Processing,PR Refining,Materials,352245,USD
+2025-08-01,G&A,General Administration,Third Party,568217,USD
+2025-08-01,G&A,Maintenance Shops (Overhead),Labour,241787,USD
+2025-08-01,G&A,Warehouse,Labour,374376,USD
+2025-08-01,G&A,Purchasing,Labour,207287,USD
+2025-08-01,G&A,Safety,Labour,492813,USD
+2025-08-01,G&A,Security,Third Party,333262,USD
+2025-08-01,G&A,Legal,Third Party,1638,USD
+2025-08-01,G&A,Environmental Services,Labour,150525,USD
+2025-08-01,G&A,Camp,Third Party,1460458,USD
+2025-08-01,G&A,Public Community Relations,Other,346944,USD
+2025-08-01,G&A,Human Resources,Labour,106843,USD
+2025-08-01,G&A,New Business / Project Development,Third Party,797554,USD
+2025-08-01,G&A,Financings & Cost,Other,110638,USD
+2025-08-01,G&A,Information Systems,Materials,105692,USD
+2025-08-01,G&A,Contract Administration,Labour,23862,USD
+2025-08-01,G&A,Other Indirect,Other,149824,USD
+2025-08-01,Mine,Stockpile/WIP,Other,1740162,USD
+2025-09-01,Mine,Drilling,Labour,1536353,USD
+2025-09-01,Mine,Blasting,Labour,1027840,USD
+2025-09-01,Mine,Loading,Labour,620478,USD
+2025-09-01,Mine,Hauling,Labour,999752,USD
+2025-09-01,Mine,Ground Support,Labour,826390,USD
+2025-09-01,Mine,Mine Services,Materials,405349,USD
+2025-09-01,Mine,Mine Geology,Labour,373433,USD
+2025-09-01,Mine,Mine Engineering,Labour,396466,USD
+2025-09-01,Mine,Mine Maintenance,Materials,968061,USD
+2025-09-01,Mine,General Operating,Other,1383876,USD
+2025-09-01,Processing,CO General Operating,Labour,338318,USD
+2025-09-01,Processing,CO Primary Crushing,Labour,338119,USD
+2025-09-01,Processing,CO Grinding and Classifying,Labour,386865,USD
+2025-09-01,Processing,CO Regrinding and Flotation,Labour,256661,USD
+2025-09-01,Processing,CO Thickening and Filtering,Labour,116097,USD
+2025-09-01,Processing,CO Tailing Disposal,Materials,179333,USD
+2025-09-01,Processing,CO Sampling and Assaying,Materials,456318,USD
+2025-09-01,Processing,CO Plant Maintenance,Materials,744675,USD
+2025-09-01,Processing,PR Leaching,Materials,445046,USD
+2025-09-01,Processing,PR Refining,Materials,352245,USD
+2025-09-01,G&A,General Administration,Third Party,568217,USD
+2025-09-01,G&A,Maintenance Shops (Overhead),Labour,241787,USD
+2025-09-01,G&A,Warehouse,Labour,374376,USD
+2025-09-01,G&A,Purchasing,Labour,207287,USD
+2025-09-01,G&A,Safety,Labour,492813,USD
+2025-09-01,G&A,Security,Third Party,333262,USD
+2025-09-01,G&A,Legal,Third Party,1638,USD
+2025-09-01,G&A,Environmental Services,Labour,150525,USD
+2025-09-01,G&A,Camp,Third Party,1460458,USD
+2025-09-01,G&A,Public Community Relations,Other,346944,USD
+2025-09-01,G&A,Human Resources,Labour,106843,USD
+2025-09-01,G&A,New Business / Project Development,Third Party,797554,USD
+2025-09-01,G&A,Financings & Cost,Other,110638,USD
+2025-09-01,G&A,Information Systems,Materials,105692,USD
+2025-09-01,G&A,Contract Administration,Labour,23862,USD
+2025-09-01,G&A,Other Indirect,Other,149824,USD
+2025-09-01,Mine,Stockpile/WIP,Other,1740162,USD
+2025-10-01,Mine,Drilling,Labour,1536353,USD
+2025-10-01,Mine,Blasting,Labour,1027840,USD
+2025-10-01,Mine,Loading,Labour,620478,USD
+2025-10-01,Mine,Hauling,Labour,999752,USD
+2025-10-01,Mine,Ground Support,Labour,826390,USD
+2025-10-01,Mine,Mine Services,Materials,405349,USD
+2025-10-01,Mine,Mine Geology,Labour,373433,USD
+2025-10-01,Mine,Mine Engineering,Labour,396466,USD
+2025-10-01,Mine,Mine Maintenance,Materials,968061,USD
+2025-10-01,Mine,General Operating,Other,1383876,USD
+2025-10-01,Processing,CO General Operating,Labour,338318,USD
+2025-10-01,Processing,CO Primary Crushing,Labour,338119,USD
+2025-10-01,Processing,CO Grinding and Classifying,Labour,386865,USD
+2025-10-01,Processing,CO Regrinding and Flotation,Labour,256661,USD
+2025-10-01,Processing,CO Thickening and Filtering,Labour,116097,USD
+2025-10-01,Processing,CO Tailing Disposal,Materials,179333,USD
+2025-10-01,Processing,CO Sampling and Assaying,Materials,456318,USD
+2025-10-01,Processing,CO Plant Maintenance,Materials,744675,USD
+2025-10-01,Processing,PR Leaching,Materials,445046,USD
+2025-10-01,Processing,PR Refining,Materials,352245,USD
+2025-10-01,G&A,General Administration,Third Party,568217,USD
+2025-10-01,G&A,Maintenance Shops (Overhead),Labour,241787,USD
+2025-10-01,G&A,Warehouse,Labour,374376,USD
+2025-10-01,G&A,Purchasing,Labour,207287,USD
+2025-10-01,G&A,Safety,Labour,492813,USD
+2025-10-01,G&A,Security,Third Party,333262,USD
+2025-10-01,G&A,Legal,Third Party,1638,USD
+2025-10-01,G&A,Environmental Services,Labour,150525,USD
+2025-10-01,G&A,Camp,Third Party,1460458,USD
+2025-10-01,G&A,Public Community Relations,Other,346944,USD
+2025-10-01,G&A,Human Resources,Labour,106843,USD
+2025-10-01,G&A,New Business / Project Development,Third Party,797554,USD
+2025-10-01,G&A,Financings & Cost,Other,110638,USD
+2025-10-01,G&A,Information Systems,Materials,105692,USD
+2025-10-01,G&A,Contract Administration,Labour,23862,USD
+2025-10-01,G&A,Other Indirect,Other,149824,USD
+2025-10-01,Mine,Stockpile/WIP,Other,1740162,USD
+2025-11-01,Mine,Drilling,Labour,1536353,USD
+2025-11-01,Mine,Blasting,Labour,1027840,USD
+2025-11-01,Mine,Loading,Labour,620478,USD
+2025-11-01,Mine,Hauling,Labour,999752,USD
+2025-11-01,Mine,Ground Support,Labour,826390,USD
+2025-11-01,Mine,Mine Services,Materials,405349,USD
+2025-11-01,Mine,Mine Geology,Labour,373433,USD
+2025-11-01,Mine,Mine Engineering,Labour,396466,USD
+2025-11-01,Mine,Mine Maintenance,Materials,968061,USD
+2025-11-01,Mine,General Operating,Other,1383876,USD
+2025-11-01,Processing,CO General Operating,Labour,338318,USD
+2025-11-01,Processing,CO Primary Crushing,Labour,338119,USD
+2025-11-01,Processing,CO Grinding and Classifying,Labour,386865,USD
+2025-11-01,Processing,CO Regrinding and Flotation,Labour,256661,USD
+2025-11-01,Processing,CO Thickening and Filtering,Labour,116097,USD
+2025-11-01,Processing,CO Tailing Disposal,Materials,179333,USD
+2025-11-01,Processing,CO Sampling and Assaying,Materials,456318,USD
+2025-11-01,Processing,CO Plant Maintenance,Materials,744675,USD
+2025-11-01,Processing,PR Leaching,Materials,445046,USD
+2025-11-01,Processing,PR Refining,Materials,352245,USD
+2025-11-01,G&A,General Administration,Third Party,568217,USD
+2025-11-01,G&A,Maintenance Shops (Overhead),Labour,241787,USD
+2025-11-01,G&A,Warehouse,Labour,374376,USD
+2025-11-01,G&A,Purchasing,Labour,207287,USD
+2025-11-01,G&A,Safety,Labour,492813,USD
+2025-11-01,G&A,Security,Third Party,333262,USD
+2025-11-01,G&A,Legal,Third Party,1638,USD
+2025-11-01,G&A,Environmental Services,Labour,150525,USD
+2025-11-01,G&A,Camp,Third Party,1460458,USD
+2025-11-01,G&A,Public Community Relations,Other,346944,USD
+2025-11-01,G&A,Human Resources,Labour,106843,USD
+2025-11-01,G&A,New Business / Project Development,Third Party,797554,USD
+2025-11-01,G&A,Financings & Cost,Other,110638,USD
+2025-11-01,G&A,Information Systems,Materials,105692,USD
+2025-11-01,G&A,Contract Administration,Labour,23862,USD
+2025-11-01,G&A,Other Indirect,Other,149824,USD
+2025-11-01,Mine,Stockpile/WIP,Other,1740162,USD
+2025-12-01,Mine,Drilling,Labour,1536353,USD
+2025-12-01,Mine,Blasting,Labour,1027840,USD
+2025-12-01,Mine,Loading,Labour,620478,USD
+2025-12-01,Mine,Hauling,Labour,999752,USD
+2025-12-01,Mine,Ground Support,Labour,826390,USD
+2025-12-01,Mine,Mine Services,Materials,405349,USD
+2025-12-01,Mine,Mine Geology,Labour,373433,USD
+2025-12-01,Mine,Mine Engineering,Labour,396466,USD
+2025-12-01,Mine,Mine Maintenance,Materials,968061,USD
+2025-12-01,Mine,General Operating,Other,1383876,USD
+2025-12-01,Processing,CO General Operating,Labour,338318,USD
+2025-12-01,Processing,CO Primary Crushing,Labour,338119,USD
+2025-12-01,Processing,CO Grinding and Classifying,Labour,386865,USD
+2025-12-01,Processing,CO Regrinding and Flotation,Labour,256661,USD
+2025-12-01,Processing,CO Thickening and Filtering,Labour,116097,USD
+2025-12-01,Processing,CO Tailing Disposal,Materials,179333,USD
+2025-12-01,Processing,CO Sampling and Assaying,Materials,456318,USD
+2025-12-01,Processing,CO Plant Maintenance,Materials,744675,USD
+2025-12-01,Processing,PR Leaching,Materials,445046,USD
+2025-12-01,Processing,PR Refining,Materials,352245,USD
+2025-12-01,G&A,General Administration,Third Party,568217,USD
+2025-12-01,G&A,Maintenance Shops (Overhead),Labour,241787,USD
+2025-12-01,G&A,Warehouse,Labour,374376,USD
+2025-12-01,G&A,Purchasing,Labour,207287,USD
+2025-12-01,G&A,Safety,Labour,492813,USD
+2025-12-01,G&A,Security,Third Party,333262,USD
+2025-12-01,G&A,Legal,Third Party,1638,USD
+2025-12-01,G&A,Environmental Services,Labour,150525,USD
+2025-12-01,G&A,Camp,Third Party,1460458,USD
+2025-12-01,G&A,Public Community Relations,Other,346944,USD
+2025-12-01,G&A,Human Resources,Labour,106843,USD
+2025-12-01,G&A,New Business / Project Development,Third Party,797554,USD
+2025-12-01,G&A,Financings & Cost,Other,110638,USD
+2025-12-01,G&A,Information Systems,Materials,105692,USD
+2025-12-01,G&A,Contract Administration,Labour,23862,USD
+2025-12-01,G&A,Other Indirect,Other,149824,USD
+2025-12-01,Mine,Stockpile/WIP,Other,1740162,USD

@@ -1,3 +1,33 @@
-date,category,car_number,project_name,type,amount,currency
-2025-01-15,Mine Equipment,C487MY25001,Reemplazo unidad Ene,sustaining,500000,USD
-2025-01-15,Mine Infrastructure,,Motobomba Dewatering,sustaining,211052,USD
+date,category,car_number,project_name,type,amount,accretion_of_mine_closure_liability,currency
+2025-01-01,Exploration/Mine Geology,C487EY21001,CAPEX EXPLORACIONES,sustaining,703258,0,USD
+2025-01-01,Mine Equipment,C487MY25001,Reemplazo unidad rotación Diamec 303,sustaining,0,0,USD
+2025-01-01,Mine Equipment,C487MY25002,Estaciones de Bombeo,sustaining,0,0,USD
+2025-01-01,Mine Equipment,C487MY25003,Data Infrastructure UG,sustaining,0,0,USD
+2025-01-01,Mine Equipment,C487MY25004,Leaky feeder EPW,sustaining,0,0,USD
+2025-01-01,Mine Equipment,C487MY25005,Ventiladores de mina,sustaining,0,0,USD
+2025-01-01,Mine Equipment,C487MY25006,,sustaining,0,0,USD
+2025-01-01,Mine Equipment,C487MY25007,,sustaining,0,0,USD
+2025-01-01,Mine Equipment,C487MY25008,,sustaining,0,0,USD
+2025-01-01,Mine Equipment,C487MY25009,,sustaining,0,0,USD
+2025-01-01,Mine Equipment,C487MY25010,,sustaining,0,0,USD
+2025-01-01,Plant Upgrades,C487PY25001,,sustaining,0,0,USD
+2025-01-01,Administration Projects,C487AY25001,,sustaining,0,0,USD
+2025-01-01,Administration Projects,C487AY25002,,sustaining,0,0,USD
+2025-01-01,Administration Projects,C487AY25003,,sustaining,0,0,USD
+2025-01-01,Site Infrastructure,C487AY24001,,sustaining,-3261,0,USD
+2025-01-01,Site Infrastructure,C487AY24005,,sustaining,3915,0,USD
+2025-01-01,Site Infrastructure,C487AY24003,,sustaining,3261,0,USD
+2025-01-01,Administration Projects,C48703300,,sustaining,2970,0,USD
+2025-01-01,Pre-Stripping and Capital Developments,PRE-001,,sustaining,0,0,USD
+2025-01-01,Mine Infrastructure,INF-001,,sustaining,0,0,USD
+2025-01-01,Tailings Dams and Leach Pads,TAIL-001,,sustaining,0,0,USD
+2025-01-01,Community Projects,COM-001,,sustaining,0,0,USD
+2025-01-01,Right-of-Use Asset (IFRS16),IFRS16-001,,leasing,0,0,USD
+2025-01-01,Total MPPE Additions,MPPE-TOTAL,,sustaining,709143,0,USD
+2025-01-01,Project Capital,PROJ-CAP,,project,0,0,USD
+2025-01-01,Leasing Addition - Project Capital,LEASE-PROJ,,leasing,0,0,USD
+2025-01-01,Other,OTHER-001,,sustaining,0,0,USD
+2025-01-01,Sustaining MPPE Additions,MPPE-SUST,,sustaining,709143,0,USD
+2025-01-01,Leasing Addition - Sustaining Capital,LEASE-SUST,,leasing,0,0,USD
+2025-01-01,Sustaining Capital Lease Cash Outflows,LEASE-CASH,,leasing,0,0,USD
+2025-01-01,IFRS16,IFRS16-SUM,,leasing,0,0,USD

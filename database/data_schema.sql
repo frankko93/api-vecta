@@ -3,6 +3,15 @@
 -- Production, Dore, PBR, OPEX, CAPEX, Revenue
 -- ============================================
 
+-- Drop tables if they exist (for clean reset)
+DROP TABLE IF EXISTS production_data CASCADE;
+DROP TABLE IF EXISTS dore_data CASCADE;
+DROP TABLE IF EXISTS pbr_data CASCADE;
+DROP TABLE IF EXISTS opex_data CASCADE;
+DROP TABLE IF EXISTS capex_data CASCADE;
+DROP TABLE IF EXISTS revenue_data CASCADE;
+DROP TABLE IF EXISTS financial_data CASCADE;
+
 -- Production Data
 CREATE TABLE production_data (
     id BIGSERIAL PRIMARY KEY,
@@ -42,6 +51,8 @@ CREATE TABLE dore_data (
     -- Charges
     treatment_charge DECIMAL(15,2) NOT NULL,
     refining_deductions_au DECIMAL(15,2) NOT NULL,
+    -- Streaming agreement (usually negative)
+    streaming DECIMAL(15,2) DEFAULT 0,
     -- Metadata
     data_type VARCHAR(20) NOT NULL DEFAULT 'actual',
     version INT NOT NULL DEFAULT 1,
@@ -56,16 +67,42 @@ CREATE TABLE pbr_data (
     id BIGSERIAL PRIMARY KEY,
     company_id BIGINT NOT NULL REFERENCES mining_companies(id) ON DELETE CASCADE,
     date DATE NOT NULL,
-    -- Mining
-    ore_mined_t DECIMAL(15,3) NOT NULL,
+    
+    -- Mining - Ore breakdown by mine type
+    open_pit_ore_t DECIMAL(15,3) DEFAULT 0,
+    underground_ore_t DECIMAL(15,3) DEFAULT 0,
+    ore_mined_t DECIMAL(15,3) NOT NULL, -- Total = open_pit + underground
+    
+    -- Mining - Waste and ratios
     waste_mined_t DECIMAL(15,3) NOT NULL,
-    developments_m DECIMAL(10,2) NOT NULL,
+    stripping_ratio DECIMAL(10,2) DEFAULT 0, -- Waste / OpenPit Ore
+    
+    -- Mining - Grades by mine type
+    mining_grade_silver_gpt DECIMAL(10,3) DEFAULT 0,
+    mining_grade_gold_gpt DECIMAL(10,3) DEFAULT 0,
+    open_pit_grade_silver_gpt DECIMAL(10,3) DEFAULT 0,
+    underground_grade_silver_gpt DECIMAL(10,3) DEFAULT 0,
+    open_pit_grade_gold_gpt DECIMAL(10,3) DEFAULT 0,
+    underground_grade_gold_gpt DECIMAL(10,3) DEFAULT 0,
+    
+    -- Developments breakdown
+    primary_development_m DECIMAL(10,2) DEFAULT 0,
+    secondary_development_opex_m DECIMAL(10,2) DEFAULT 0,
+    expansionary_development_m DECIMAL(10,2) DEFAULT 0,
+    developments_m DECIMAL(10,2) NOT NULL, -- Total
+    
     -- Processing
     total_tonnes_processed DECIMAL(15,3) NOT NULL,
     feed_grade_silver_gpt DECIMAL(10,3) NOT NULL,
     feed_grade_gold_gpt DECIMAL(10,3) NOT NULL,
     recovery_rate_silver_pct DECIMAL(5,2) NOT NULL,
     recovery_rate_gold_pct DECIMAL(5,2) NOT NULL,
+    
+    -- Headcount
+    full_time_employees INT DEFAULT 0,
+    contractors INT DEFAULT 0,
+    total_headcount INT DEFAULT 0,
+    
     -- Metadata
     data_type VARCHAR(20) NOT NULL DEFAULT 'actual',
     version INT NOT NULL DEFAULT 1,
@@ -103,6 +140,7 @@ CREATE TABLE capex_data (
     project_name TEXT NOT NULL,
     type VARCHAR(50) NOT NULL,
     amount DECIMAL(15,2) NOT NULL,
+    accretion_of_mine_closure_liability DECIMAL(15,2) DEFAULT 0,
     currency VARCHAR(10) NOT NULL,
     data_type VARCHAR(20) NOT NULL DEFAULT 'actual',
     version INT NOT NULL DEFAULT 1,

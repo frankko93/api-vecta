@@ -39,6 +39,9 @@ docker-compose -f e2e/docker-compose.yml up --build  # E2E tests
 
 - **FRONTEND_API_SPEC.md** - Especificación completa para frontend
 - **SETUP.md** - Guía detallada de setup
+- **IMPORT_GUIDE.md** - Guía de importación de CSVs desde frontend
+- **DATA_SETUP_CHECKLIST.md** - Checklist para setup de datos de prueba
+- **INPUT_CONTRACT_AND_CALCULATION_RULEBOOK.md** - Contrato de entrada y reglas de cálculo
 
 ## 🎯 Endpoints Principales
 

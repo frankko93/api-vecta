@@ -15,9 +15,10 @@ type DetailUseCase interface {
 	GetDoreDetail(ctx context.Context, req *DetailRequest) (*DoreDetailReport, error)
 	GetOPEXDetail(ctx context.Context, req *DetailRequest) (*OPEXDetailReport, error)
 	GetCAPEXDetail(ctx context.Context, req *DetailRequest) (*CAPEXDetailReport, error)
-	GetFinancialDetail(ctx context.Context, req *DetailRequest) (*FinancialDetailReport, error)
-	GetProductionDetail(ctx context.Context, req *DetailRequest) (*ProductionDetailReport, error)
-	GetRevenueDetail(ctx context.Context, req *DetailRequest) (*RevenueDetailReport, error)
+	// NOTE: GetFinancialDetail, GetProductionDetail, GetRevenueDetail removed
+	// - Financial data is now in Summary/NSR and Summary/Costs
+	// - Production data is now in PBR and Summary/Production
+	// - Revenue data is now in Dore and Summary/NSR
 }
 
 // DetailRequest represents a request for detailed report
@@ -46,6 +47,11 @@ func (uc *detailUseCase) GetPBRDetail(ctx context.Context, req *DetailRequest) (
 		return nil, err
 	}
 
+	companyConfig, err := uc.repo.GetCompanyConfig(ctx, req.CompanyID)
+	if err != nil {
+		return nil, err
+	}
+
 	pbrActual, err := uc.repo.GetPBRData(ctx, req.CompanyID, req.Year, "actual")
 	if err != nil {
 		return nil, err
@@ -63,6 +69,7 @@ func (uc *detailUseCase) GetPBRDetail(ctx context.Context, req *DetailRequest) (
 		CompanyID:   req.CompanyID,
 		CompanyName: companyName,
 		Year:        req.Year,
+		Config:      companyConfig,
 		Months:      months,
 	}, nil
 }
@@ -70,6 +77,11 @@ func (uc *detailUseCase) GetPBRDetail(ctx context.Context, req *DetailRequest) (
 // GetDoreDetail returns detailed Dore report
 func (uc *detailUseCase) GetDoreDetail(ctx context.Context, req *DetailRequest) (*DoreDetailReport, error) {
 	companyName, err := uc.repo.GetCompanyName(ctx, req.CompanyID)
+	if err != nil {
+		return nil, err
+	}
+
+	companyConfig, err := uc.repo.GetCompanyConfig(ctx, req.CompanyID)
 	if err != nil {
 		return nil, err
 	}
@@ -101,6 +113,7 @@ func (uc *detailUseCase) GetDoreDetail(ctx context.Context, req *DetailRequest) 
 		CompanyID:   req.CompanyID,
 		CompanyName: companyName,
 		Year:        req.Year,
+		Config:      companyConfig,
 		Months:      months,
 	}, nil
 }
@@ -108,6 +121,11 @@ func (uc *detailUseCase) GetDoreDetail(ctx context.Context, req *DetailRequest) 
 // GetOPEXDetail returns detailed OPEX report
 func (uc *detailUseCase) GetOPEXDetail(ctx context.Context, req *DetailRequest) (*OPEXDetailReport, error) {
 	companyName, err := uc.repo.GetCompanyName(ctx, req.CompanyID)
+	if err != nil {
+		return nil, err
+	}
+
+	companyConfig, err := uc.repo.GetCompanyConfig(ctx, req.CompanyID)
 	if err != nil {
 		return nil, err
 	}
@@ -123,21 +141,28 @@ func (uc *detailUseCase) GetOPEXDetail(ctx context.Context, req *DetailRequest) 
 	}
 
 	monthsFilter := uc.parseMonthsFilter(req.Months)
-	months, byCostCenter, bySubcategory := uc.buildOPEXMonthlyData(req.Year, opexActual, opexBudget, monthsFilter)
+	months, byCostCenter, bySubcategory, byExpenseType := uc.buildOPEXMonthlyData(req.Year, opexActual, opexBudget, monthsFilter)
 
 	return &OPEXDetailReport{
 		CompanyID:     req.CompanyID,
 		CompanyName:   companyName,
 		Year:          req.Year,
+		Config:        companyConfig,
 		Months:        months,
 		ByCostCenter:  byCostCenter,
 		BySubcategory: bySubcategory,
+		ByExpenseType: byExpenseType,
 	}, nil
 }
 
 // GetCAPEXDetail returns detailed CAPEX report
 func (uc *detailUseCase) GetCAPEXDetail(ctx context.Context, req *DetailRequest) (*CAPEXDetailReport, error) {
 	companyName, err := uc.repo.GetCompanyName(ctx, req.CompanyID)
+	if err != nil {
+		return nil, err
+	}
+
+	companyConfig, err := uc.repo.GetCompanyConfig(ctx, req.CompanyID)
 	if err != nil {
 		return nil, err
 	}
@@ -159,121 +184,17 @@ func (uc *detailUseCase) GetCAPEXDetail(ctx context.Context, req *DetailRequest)
 		CompanyID:   req.CompanyID,
 		CompanyName: companyName,
 		Year:        req.Year,
+		Config:      companyConfig,
 		Months:      months,
 		ByType:      byType,
 		ByCategory:  byCategory,
 	}, nil
 }
 
-// GetFinancialDetail returns detailed Financial report
-func (uc *detailUseCase) GetFinancialDetail(ctx context.Context, req *DetailRequest) (*FinancialDetailReport, error) {
-	companyName, err := uc.repo.GetCompanyName(ctx, req.CompanyID)
-	if err != nil {
-		return nil, err
-	}
-
-	financialActual, err := uc.repo.GetFinancialData(ctx, req.CompanyID, req.Year, "actual")
-	if err != nil {
-		return nil, err
-	}
-
-	financialBudget, err := uc.repo.GetFinancialData(ctx, req.CompanyID, req.Year, "budget")
-	if err != nil {
-		return nil, err
-	}
-
-	monthsFilter := uc.parseMonthsFilter(req.Months)
-	months := uc.buildFinancialMonthlyData(req.Year, financialActual, financialBudget, monthsFilter)
-
-	return &FinancialDetailReport{
-		CompanyID:   req.CompanyID,
-		CompanyName: companyName,
-		Year:        req.Year,
-		Months:      months,
-	}, nil
-}
-
-// GetProductionDetail returns detailed Production report
-func (uc *detailUseCase) GetProductionDetail(ctx context.Context, req *DetailRequest) (*ProductionDetailReport, error) {
-	companyName, err := uc.repo.GetCompanyName(ctx, req.CompanyID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get PBR for Silver/Gold production
-	pbrActual, err := uc.repo.GetPBRData(ctx, req.CompanyID, req.Year, "actual")
-	if err != nil {
-		return nil, err
-	}
-
-	pbrBudget, err := uc.repo.GetPBRData(ctx, req.CompanyID, req.Year, "budget")
-	if err != nil {
-		return nil, err
-	}
-
-	// Get ProductionData for other minerals
-	productionActual, err := uc.repo.GetProductionData(ctx, req.CompanyID, req.Year, "actual")
-	if err != nil {
-		return nil, err
-	}
-
-	productionBudget, err := uc.repo.GetProductionData(ctx, req.CompanyID, req.Year, "budget")
-	if err != nil {
-		return nil, err
-	}
-
-	// Get mineral map for code/name lookup
-	mineralMap, err := uc.repo.GetMineralMap(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	monthsFilter := uc.parseMonthsFilter(req.Months)
-	months, byMineral := uc.buildProductionMonthlyData(req.Year, pbrActual, pbrBudget, productionActual, productionBudget, mineralMap, monthsFilter)
-
-	return &ProductionDetailReport{
-		CompanyID:   req.CompanyID,
-		CompanyName: companyName,
-		Year:        req.Year,
-		Months:      months,
-		ByMineral:   byMineral,
-	}, nil
-}
-
-// GetRevenueDetail returns detailed Revenue report
-func (uc *detailUseCase) GetRevenueDetail(ctx context.Context, req *DetailRequest) (*RevenueDetailReport, error) {
-	companyName, err := uc.repo.GetCompanyName(ctx, req.CompanyID)
-	if err != nil {
-		return nil, err
-	}
-
-	revenueActual, err := uc.repo.GetRevenueData(ctx, req.CompanyID, req.Year, "actual")
-	if err != nil {
-		return nil, err
-	}
-
-	revenueBudget, err := uc.repo.GetRevenueData(ctx, req.CompanyID, req.Year, "budget")
-	if err != nil {
-		return nil, err
-	}
-
-	// Get mineral map for code/name lookup
-	mineralMap, err := uc.repo.GetMineralMap(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	monthsFilter := uc.parseMonthsFilter(req.Months)
-	months, byMineral := uc.buildRevenueMonthlyData(req.Year, revenueActual, revenueBudget, mineralMap, monthsFilter)
-
-	return &RevenueDetailReport{
-		CompanyID:   req.CompanyID,
-		CompanyName: companyName,
-		Year:        req.Year,
-		Months:      months,
-		ByMineral:   byMineral,
-	}, nil
-}
+// NOTE: GetFinancialDetail, GetProductionDetail, GetRevenueDetail removed
+// - Financial data is now in Summary/NSR and Summary/Costs
+// - Production data is now in PBR and Summary/Production
+// - Revenue data is now in Dore and Summary/NSR
 
 // Helper methods
 
@@ -348,36 +269,93 @@ func (uc *detailUseCase) buildPBRDetail(pbr *data.PBRData) *PBRDetail {
 	goldOz := pbr.FeedGradeGoldGpt * pbr.TotalTonnesProcessed * (pbr.RecoveryRateGoldPct / 100) / 31.1035
 
 	return &PBRDetail{
-		OreMinedT:               pbr.OreMinedT,
-		WasteMinedT:             pbr.WasteMinedT,
-		DevelopmentsM:           pbr.DevelopmentsM,
-		WasteOreRatio:           wasteOreRatio,
-		TotalMoved:              totalMoved,
-		TotalTonnesProcessed:    pbr.TotalTonnesProcessed,
-		FeedGradeSilverGpt:      pbr.FeedGradeSilverGpt,
-		FeedGradeGoldGpt:        pbr.FeedGradeGoldGpt,
-		RecoveryRateSilverPct:   pbr.RecoveryRateSilverPct,
-		RecoveryRateGoldPct:     pbr.RecoveryRateGoldPct,
+		// Mining - Ore breakdown
+		OpenPitOreT:     pbr.OpenPitOreT,
+		UndergroundOreT: pbr.UndergroundOreT,
+		OreMinedT:       pbr.OreMinedT,
+
+		// Mining - Waste and ratios
+		WasteMinedT:    pbr.WasteMinedT,
+		StrippingRatio: pbr.StrippingRatio,
+		WasteOreRatio:  wasteOreRatio,
+		TotalMoved:     totalMoved,
+
+		// Mining - Grades
+		MiningGradeSilverGpt:      pbr.MiningGradeSilverGpt,
+		MiningGradeGoldGpt:        pbr.MiningGradeGoldGpt,
+		OpenPitGradeSilverGpt:     pbr.OpenPitGradeSilverGpt,
+		UndergroundGradeSilverGpt: pbr.UndergroundGradeSilverGpt,
+		OpenPitGradeGoldGpt:       pbr.OpenPitGradeGoldGpt,
+		UndergroundGradeGoldGpt:   pbr.UndergroundGradeGoldGpt,
+
+		// Developments breakdown
+		PrimaryDevelopmentM:       pbr.PrimaryDevelopmentM,
+		SecondaryDevelopmentOpexM: pbr.SecondaryDevelopmentOpexM,
+		ExpansionaryDevelopmentM:  pbr.ExpansionaryDevelopmentM,
+		DevelopmentsM:             pbr.DevelopmentsM,
+
+		// Processing
+		TotalTonnesProcessed:  pbr.TotalTonnesProcessed,
+		FeedGradeSilverGpt:    pbr.FeedGradeSilverGpt,
+		FeedGradeGoldGpt:      pbr.FeedGradeGoldGpt,
+		RecoveryRateSilverPct: pbr.RecoveryRateSilverPct,
+		RecoveryRateGoldPct:   pbr.RecoveryRateGoldPct,
+
+		// Production (calculated)
 		TotalProductionSilverOz: silverOz,
 		TotalProductionGoldOz:   goldOz,
-		HasData:                 true,
+
+		// Headcount
+		FullTimeEmployees: pbr.FullTimeEmployees,
+		Contractors:       pbr.Contractors,
+		TotalHeadcount:    pbr.TotalHeadcount,
+
+		HasData: true,
 	}
 }
 
 func (uc *detailUseCase) calculatePBRVariance(actual, budget *PBRDetail) *PBRVariance {
 	return &PBRVariance{
-		OreMinedT:               VarianceMetric{Actual: actual.OreMinedT, Budget: budget.OreMinedT, Variance: actual.OreMinedT - budget.OreMinedT, VariancePct: calculateVariancePct(actual.OreMinedT, budget.OreMinedT)},
-		WasteMinedT:             VarianceMetric{Actual: actual.WasteMinedT, Budget: budget.WasteMinedT, Variance: actual.WasteMinedT - budget.WasteMinedT, VariancePct: calculateVariancePct(actual.WasteMinedT, budget.WasteMinedT)},
-		DevelopmentsM:           VarianceMetric{Actual: actual.DevelopmentsM, Budget: budget.DevelopmentsM, Variance: actual.DevelopmentsM - budget.DevelopmentsM, VariancePct: calculateVariancePct(actual.DevelopmentsM, budget.DevelopmentsM)},
-		WasteOreRatio:           VarianceMetric{Actual: actual.WasteOreRatio, Budget: budget.WasteOreRatio, Variance: actual.WasteOreRatio - budget.WasteOreRatio, VariancePct: calculateVariancePct(actual.WasteOreRatio, budget.WasteOreRatio)},
-		TotalMoved:              VarianceMetric{Actual: actual.TotalMoved, Budget: budget.TotalMoved, Variance: actual.TotalMoved - budget.TotalMoved, VariancePct: calculateVariancePct(actual.TotalMoved, budget.TotalMoved)},
-		TotalTonnesProcessed:    VarianceMetric{Actual: actual.TotalTonnesProcessed, Budget: budget.TotalTonnesProcessed, Variance: actual.TotalTonnesProcessed - budget.TotalTonnesProcessed, VariancePct: calculateVariancePct(actual.TotalTonnesProcessed, budget.TotalTonnesProcessed)},
-		FeedGradeSilverGpt:      VarianceMetric{Actual: actual.FeedGradeSilverGpt, Budget: budget.FeedGradeSilverGpt, Variance: actual.FeedGradeSilverGpt - budget.FeedGradeSilverGpt, VariancePct: calculateVariancePct(actual.FeedGradeSilverGpt, budget.FeedGradeSilverGpt)},
-		FeedGradeGoldGpt:        VarianceMetric{Actual: actual.FeedGradeGoldGpt, Budget: budget.FeedGradeGoldGpt, Variance: actual.FeedGradeGoldGpt - budget.FeedGradeGoldGpt, VariancePct: calculateVariancePct(actual.FeedGradeGoldGpt, budget.FeedGradeGoldGpt)},
-		RecoveryRateSilverPct:   VarianceMetric{Actual: actual.RecoveryRateSilverPct, Budget: budget.RecoveryRateSilverPct, Variance: actual.RecoveryRateSilverPct - budget.RecoveryRateSilverPct, VariancePct: calculateVariancePct(actual.RecoveryRateSilverPct, budget.RecoveryRateSilverPct)},
-		RecoveryRateGoldPct:     VarianceMetric{Actual: actual.RecoveryRateGoldPct, Budget: budget.RecoveryRateGoldPct, Variance: actual.RecoveryRateGoldPct - budget.RecoveryRateGoldPct, VariancePct: calculateVariancePct(actual.RecoveryRateGoldPct, budget.RecoveryRateGoldPct)},
+		// Mining - Ore breakdown
+		OpenPitOreT:     VarianceMetric{Actual: actual.OpenPitOreT, Budget: budget.OpenPitOreT, Variance: actual.OpenPitOreT - budget.OpenPitOreT, VariancePct: calculateVariancePct(actual.OpenPitOreT, budget.OpenPitOreT)},
+		UndergroundOreT: VarianceMetric{Actual: actual.UndergroundOreT, Budget: budget.UndergroundOreT, Variance: actual.UndergroundOreT - budget.UndergroundOreT, VariancePct: calculateVariancePct(actual.UndergroundOreT, budget.UndergroundOreT)},
+		OreMinedT:       VarianceMetric{Actual: actual.OreMinedT, Budget: budget.OreMinedT, Variance: actual.OreMinedT - budget.OreMinedT, VariancePct: calculateVariancePct(actual.OreMinedT, budget.OreMinedT)},
+
+		// Mining - Waste and ratios
+		WasteMinedT:    VarianceMetric{Actual: actual.WasteMinedT, Budget: budget.WasteMinedT, Variance: actual.WasteMinedT - budget.WasteMinedT, VariancePct: calculateVariancePct(actual.WasteMinedT, budget.WasteMinedT)},
+		StrippingRatio: VarianceMetric{Actual: actual.StrippingRatio, Budget: budget.StrippingRatio, Variance: actual.StrippingRatio - budget.StrippingRatio, VariancePct: calculateVariancePct(actual.StrippingRatio, budget.StrippingRatio)},
+		WasteOreRatio:  VarianceMetric{Actual: actual.WasteOreRatio, Budget: budget.WasteOreRatio, Variance: actual.WasteOreRatio - budget.WasteOreRatio, VariancePct: calculateVariancePct(actual.WasteOreRatio, budget.WasteOreRatio)},
+		TotalMoved:     VarianceMetric{Actual: actual.TotalMoved, Budget: budget.TotalMoved, Variance: actual.TotalMoved - budget.TotalMoved, VariancePct: calculateVariancePct(actual.TotalMoved, budget.TotalMoved)},
+
+		// Mining - Grades
+		MiningGradeSilverGpt:      VarianceMetric{Actual: actual.MiningGradeSilverGpt, Budget: budget.MiningGradeSilverGpt, Variance: actual.MiningGradeSilverGpt - budget.MiningGradeSilverGpt, VariancePct: calculateVariancePct(actual.MiningGradeSilverGpt, budget.MiningGradeSilverGpt)},
+		MiningGradeGoldGpt:        VarianceMetric{Actual: actual.MiningGradeGoldGpt, Budget: budget.MiningGradeGoldGpt, Variance: actual.MiningGradeGoldGpt - budget.MiningGradeGoldGpt, VariancePct: calculateVariancePct(actual.MiningGradeGoldGpt, budget.MiningGradeGoldGpt)},
+		OpenPitGradeSilverGpt:     VarianceMetric{Actual: actual.OpenPitGradeSilverGpt, Budget: budget.OpenPitGradeSilverGpt, Variance: actual.OpenPitGradeSilverGpt - budget.OpenPitGradeSilverGpt, VariancePct: calculateVariancePct(actual.OpenPitGradeSilverGpt, budget.OpenPitGradeSilverGpt)},
+		UndergroundGradeSilverGpt: VarianceMetric{Actual: actual.UndergroundGradeSilverGpt, Budget: budget.UndergroundGradeSilverGpt, Variance: actual.UndergroundGradeSilverGpt - budget.UndergroundGradeSilverGpt, VariancePct: calculateVariancePct(actual.UndergroundGradeSilverGpt, budget.UndergroundGradeSilverGpt)},
+		OpenPitGradeGoldGpt:       VarianceMetric{Actual: actual.OpenPitGradeGoldGpt, Budget: budget.OpenPitGradeGoldGpt, Variance: actual.OpenPitGradeGoldGpt - budget.OpenPitGradeGoldGpt, VariancePct: calculateVariancePct(actual.OpenPitGradeGoldGpt, budget.OpenPitGradeGoldGpt)},
+		UndergroundGradeGoldGpt:   VarianceMetric{Actual: actual.UndergroundGradeGoldGpt, Budget: budget.UndergroundGradeGoldGpt, Variance: actual.UndergroundGradeGoldGpt - budget.UndergroundGradeGoldGpt, VariancePct: calculateVariancePct(actual.UndergroundGradeGoldGpt, budget.UndergroundGradeGoldGpt)},
+
+		// Developments breakdown
+		PrimaryDevelopmentM:       VarianceMetric{Actual: actual.PrimaryDevelopmentM, Budget: budget.PrimaryDevelopmentM, Variance: actual.PrimaryDevelopmentM - budget.PrimaryDevelopmentM, VariancePct: calculateVariancePct(actual.PrimaryDevelopmentM, budget.PrimaryDevelopmentM)},
+		SecondaryDevelopmentOpexM: VarianceMetric{Actual: actual.SecondaryDevelopmentOpexM, Budget: budget.SecondaryDevelopmentOpexM, Variance: actual.SecondaryDevelopmentOpexM - budget.SecondaryDevelopmentOpexM, VariancePct: calculateVariancePct(actual.SecondaryDevelopmentOpexM, budget.SecondaryDevelopmentOpexM)},
+		ExpansionaryDevelopmentM:  VarianceMetric{Actual: actual.ExpansionaryDevelopmentM, Budget: budget.ExpansionaryDevelopmentM, Variance: actual.ExpansionaryDevelopmentM - budget.ExpansionaryDevelopmentM, VariancePct: calculateVariancePct(actual.ExpansionaryDevelopmentM, budget.ExpansionaryDevelopmentM)},
+		DevelopmentsM:             VarianceMetric{Actual: actual.DevelopmentsM, Budget: budget.DevelopmentsM, Variance: actual.DevelopmentsM - budget.DevelopmentsM, VariancePct: calculateVariancePct(actual.DevelopmentsM, budget.DevelopmentsM)},
+
+		// Processing
+		TotalTonnesProcessed:  VarianceMetric{Actual: actual.TotalTonnesProcessed, Budget: budget.TotalTonnesProcessed, Variance: actual.TotalTonnesProcessed - budget.TotalTonnesProcessed, VariancePct: calculateVariancePct(actual.TotalTonnesProcessed, budget.TotalTonnesProcessed)},
+		FeedGradeSilverGpt:    VarianceMetric{Actual: actual.FeedGradeSilverGpt, Budget: budget.FeedGradeSilverGpt, Variance: actual.FeedGradeSilverGpt - budget.FeedGradeSilverGpt, VariancePct: calculateVariancePct(actual.FeedGradeSilverGpt, budget.FeedGradeSilverGpt)},
+		FeedGradeGoldGpt:      VarianceMetric{Actual: actual.FeedGradeGoldGpt, Budget: budget.FeedGradeGoldGpt, Variance: actual.FeedGradeGoldGpt - budget.FeedGradeGoldGpt, VariancePct: calculateVariancePct(actual.FeedGradeGoldGpt, budget.FeedGradeGoldGpt)},
+		RecoveryRateSilverPct: VarianceMetric{Actual: actual.RecoveryRateSilverPct, Budget: budget.RecoveryRateSilverPct, Variance: actual.RecoveryRateSilverPct - budget.RecoveryRateSilverPct, VariancePct: calculateVariancePct(actual.RecoveryRateSilverPct, budget.RecoveryRateSilverPct)},
+		RecoveryRateGoldPct:   VarianceMetric{Actual: actual.RecoveryRateGoldPct, Budget: budget.RecoveryRateGoldPct, Variance: actual.RecoveryRateGoldPct - budget.RecoveryRateGoldPct, VariancePct: calculateVariancePct(actual.RecoveryRateGoldPct, budget.RecoveryRateGoldPct)},
+
+		// Production
 		TotalProductionSilverOz: VarianceMetric{Actual: actual.TotalProductionSilverOz, Budget: budget.TotalProductionSilverOz, Variance: actual.TotalProductionSilverOz - budget.TotalProductionSilverOz, VariancePct: calculateVariancePct(actual.TotalProductionSilverOz, budget.TotalProductionSilverOz)},
 		TotalProductionGoldOz:   VarianceMetric{Actual: actual.TotalProductionGoldOz, Budget: budget.TotalProductionGoldOz, Variance: actual.TotalProductionGoldOz - budget.TotalProductionGoldOz, VariancePct: calculateVariancePct(actual.TotalProductionGoldOz, budget.TotalProductionGoldOz)},
+
+		// Headcount
+		FullTimeEmployees: VarianceMetric{Actual: float64(actual.FullTimeEmployees), Budget: float64(budget.FullTimeEmployees), Variance: float64(actual.FullTimeEmployees - budget.FullTimeEmployees), VariancePct: calculateVariancePct(float64(actual.FullTimeEmployees), float64(budget.FullTimeEmployees))},
+		Contractors:       VarianceMetric{Actual: float64(actual.Contractors), Budget: float64(budget.Contractors), Variance: float64(actual.Contractors - budget.Contractors), VariancePct: calculateVariancePct(float64(actual.Contractors), float64(budget.Contractors))},
+		TotalHeadcount:    VarianceMetric{Actual: float64(actual.TotalHeadcount), Budget: float64(budget.TotalHeadcount), Variance: float64(actual.TotalHeadcount - budget.TotalHeadcount), VariancePct: calculateVariancePct(float64(actual.TotalHeadcount), float64(budget.TotalHeadcount))},
 	}
 }
 
@@ -514,12 +492,22 @@ func (uc *detailUseCase) buildOPEXMonthlyData(
 	year int,
 	opexActual, opexBudget []*data.OPEXData,
 	monthsFilter map[int]bool,
-) ([]OPEXMonthlyData, map[string]OPEXCostCenterData, map[string]OPEXSubcategoryData) {
+) ([]OPEXMonthlyData, map[string]OPEXCostCenterData, map[string]OPEXSubcategoryData, map[string]OPEXExpenseTypeData) {
 	opexActualByMonth := groupOPEXByMonth(opexActual)
 	opexBudgetByMonth := groupOPEXByMonth(opexBudget)
 
 	var months []OPEXMonthlyData
 	costCenterTotals := make(map[string]struct{ Actual, Budget float64 })
+
+	// Track subcategory totals with their cost center
+	subcategoryTotals := make(map[string]struct {
+		CostCenter string
+		Actual     float64
+		Budget     float64
+	})
+
+	// Track expense type totals
+	expenseTypeTotals := make(map[string]struct{ Actual, Budget float64 })
 
 	for month := 1; month <= 12; month++ {
 		if monthsFilter != nil && !monthsFilter[month] {
@@ -543,6 +531,34 @@ func (uc *detailUseCase) buildOPEXMonthlyData(
 			costCenterTotals["Processing"] = struct{ Actual, Budget float64 }{costCenterTotals["Processing"].Actual, costCenterTotals["Processing"].Budget + budget.Processing}
 			costCenterTotals["G&A"] = struct{ Actual, Budget float64 }{costCenterTotals["G&A"].Actual, costCenterTotals["G&A"].Budget + budget.GA}
 			costCenterTotals["Transport & Shipping"] = struct{ Actual, Budget float64 }{costCenterTotals["Transport & Shipping"].Actual, costCenterTotals["Transport & Shipping"].Budget + budget.TransportShipping}
+		}
+
+		// Aggregate by subcategory from raw data (for actual)
+		for _, opex := range opexActualByMonth[month] {
+			key := opex.Subcategory
+			entry := subcategoryTotals[key]
+			entry.CostCenter = opex.CostCenter
+			entry.Actual += opex.Amount
+			subcategoryTotals[key] = entry
+
+			// Aggregate by expense type
+			etEntry := expenseTypeTotals[opex.ExpenseType]
+			etEntry.Actual += opex.Amount
+			expenseTypeTotals[opex.ExpenseType] = etEntry
+		}
+
+		// Aggregate by subcategory from raw data (for budget)
+		for _, opex := range opexBudgetByMonth[month] {
+			key := opex.Subcategory
+			entry := subcategoryTotals[key]
+			entry.CostCenter = opex.CostCenter
+			entry.Budget += opex.Amount
+			subcategoryTotals[key] = entry
+
+			// Aggregate by expense type
+			etEntry := expenseTypeTotals[opex.ExpenseType]
+			etEntry.Budget += opex.Amount
+			expenseTypeTotals[opex.ExpenseType] = etEntry
 		}
 
 		var variance *OPEXVariance
@@ -569,10 +585,30 @@ func (uc *detailUseCase) buildOPEXMonthlyData(
 		}
 	}
 
-	// Build subcategory aggregations (simplified - would need to aggregate from raw data)
+	// Build subcategory aggregations
 	bySubcategory := make(map[string]OPEXSubcategoryData)
+	for subcategory, totals := range subcategoryTotals {
+		bySubcategory[subcategory] = OPEXSubcategoryData{
+			Subcategory: subcategory,
+			CostCenter:  totals.CostCenter,
+			Actual:      totals.Actual,
+			Budget:      totals.Budget,
+			Variance:    VarianceMetric{Actual: totals.Actual, Budget: totals.Budget, Variance: totals.Actual - totals.Budget, VariancePct: calculateVariancePct(totals.Actual, totals.Budget)},
+		}
+	}
 
-	return months, byCostCenter, bySubcategory
+	// Build expense type aggregations
+	byExpenseType := make(map[string]OPEXExpenseTypeData)
+	for expenseType, totals := range expenseTypeTotals {
+		byExpenseType[expenseType] = OPEXExpenseTypeData{
+			ExpenseType: expenseType,
+			Actual:      totals.Actual,
+			Budget:      totals.Budget,
+			Variance:    VarianceMetric{Actual: totals.Actual, Budget: totals.Budget, Variance: totals.Actual - totals.Budget, VariancePct: calculateVariancePct(totals.Actual, totals.Budget)},
+		}
+	}
+
+	return months, byCostCenter, bySubcategory, byExpenseType
 }
 
 func (uc *detailUseCase) buildOPEXDetail(opexList []*data.OPEXData) *OPEXDetail {
@@ -582,8 +618,12 @@ func (uc *detailUseCase) buildOPEXDetail(opexList []*data.OPEXData) *OPEXDetail 
 
 	var mine, processing, ga, transport, inventory float64
 	bySubcategory := make(map[string]float64)
+	byExpenseType := make(map[string]float64)
 
 	for _, opex := range opexList {
+		// Track by expense type
+		byExpenseType[opex.ExpenseType] += opex.Amount
+
 		// Inventory variations handling
 		if opex.Subcategory == "Inventory Variation" || opex.Subcategory == "Stockpile/WIP" || opex.Subcategory == "Inventory Variations" {
 			inventory += opex.Amount
@@ -615,6 +655,7 @@ func (uc *detailUseCase) buildOPEXDetail(opexList []*data.OPEXData) *OPEXDetail 
 		InventoryVariations: inventory,
 		Total:               total,
 		BySubcategory:       bySubcategory,
+		ByExpenseType:       byExpenseType,
 		HasData:             true,
 	}
 }
@@ -711,12 +752,71 @@ func (uc *detailUseCase) buildCAPEXMonthlyData(
 	return months, byType, byCategory
 }
 
+// Required CAPEX categories - all must be present in response
+var requiredCAPEXCategories = []string{
+	// Sustaining Capital (PBR)
+	"Pre-Stripping and Capital Developments",
+	"Exploration/Mine Geology",
+	"Mine Equipment",
+	"Mine Infrastructure",
+	"Tailings Dams and Leach Pads",
+	"Plant Upgrades",
+	"Site Infrastructure",
+	"Administration Projects",
+	"Community Projects",
+	"Right-of-Use Asset (IFRS16)",
+	// MPPE Additions to Sustaining Capital Reconciliation
+	"Total MPPE Additions",
+	"Project Capital",
+	"Leasing Addition - Project Capital",
+	"Other",
+	"Sustaining MPPE Additions",
+	"Leasing Addition - Sustaining Capital",
+	"Sustaining Capital Lease Cash Outflows",
+	// Capital Lease
+	"IFRS16",
+}
+
+// Required CAPEX projects - all must be present in response
+var requiredCAPEXProjects = []string{
+	"C487EY21001 - CAPEX EXPLORACIONES",
+	"C487MY25001",
+	"C487MY25002",
+	"C487MY25003",
+	"C487MY25004",
+	"C487MY25005",
+	"C487MY25006",
+	"C487MY25007",
+	"C487MY25008",
+	"C487MY25009",
+	"C487MY25010",
+	"C487PY25001",
+	"C487AY25001",
+	"C487AY25002",
+	"C487AY25003",
+	"C487AY24001",
+	"C487AY24005",
+	"C487AY24003",
+	"C48703300",
+}
+
 func (uc *detailUseCase) buildCAPEXDetail(capexList []*data.CAPEXData) *CAPEXDetail {
 	if len(capexList) == 0 {
 		return nil
 	}
 
 	var sustaining, project, leasing, accretion float64
+
+	// Initialize maps with all required keys set to 0
+	byCategory := make(map[string]float64)
+	for _, cat := range requiredCAPEXCategories {
+		byCategory[cat] = 0
+	}
+
+	byProject := make(map[string]float64)
+	for _, proj := range requiredCAPEXProjects {
+		byProject[proj] = 0
+	}
 
 	for _, capex := range capexList {
 		switch capex.Type {
@@ -727,8 +827,19 @@ func (uc *detailUseCase) buildCAPEXDetail(capexList []*data.CAPEXData) *CAPEXDet
 		case "leasing":
 			leasing += capex.Amount
 		}
-		// TODO: Add AccretionOfMineClosureLiability when field is added to CAPEXData
-		// For now, it's 0
+		// Accretion of Mine Closure Liability - now comes from the field
+		accretion += capex.AccretionOfMineClosureLiability
+
+		// Aggregate by category
+		if capex.Category != "" {
+			byCategory[capex.Category] += capex.Amount
+		}
+
+		// Aggregate by project (CAR number + project name)
+		projectKey := buildProjectKey(capex.CARNumber, capex.ProjectName)
+		if projectKey != "" {
+			byProject[projectKey] += capex.Amount
+		}
 	}
 
 	total := sustaining + project + leasing + accretion
@@ -739,8 +850,21 @@ func (uc *detailUseCase) buildCAPEXDetail(capexList []*data.CAPEXData) *CAPEXDet
 		Leasing:                         leasing,
 		AccretionOfMineClosureLiability: accretion,
 		Total:                           total,
+		ByCategory:                      byCategory,
+		ByProject:                       byProject,
 		HasData:                         true,
 	}
+}
+
+// buildProjectKey creates a project key from CAR number and project name
+func buildProjectKey(carNumber, projectName string) string {
+	if carNumber == "" {
+		return ""
+	}
+	if projectName == "" || projectName == carNumber {
+		return carNumber
+	}
+	return carNumber + " - " + projectName
 }
 
 func (uc *detailUseCase) calculateCAPEXVariance(actual, budget *CAPEXDetail) *CAPEXVarianceDetail {

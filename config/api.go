@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
@@ -20,6 +21,11 @@ type API struct {
 func NewAPI() API {
 	var api API
 	envconfig.MustProcess("NewAPI", &api)
+
+	// Render (and other PaaS) injects PORT env var — use it as override
+	if port := os.Getenv("PORT"); port != "" {
+		api.Port = port
+	}
 
 	return api
 }

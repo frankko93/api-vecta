@@ -20,6 +20,10 @@ func TestCalculateProduction(t *testing.T) {
 	// Expected gold oz = 7.35 * 35951 * 0.9536 / 31.1035 ≈ 8,106
 	assert.InDelta(t, expectedTotalProductionGoldOz, production.TotalProductionGoldOz, 50)
 
+	// Dore Production = Silver + Gold
+	expectedDoreProduction := expectedTotalProductionSilverOz + expectedTotalProductionGoldOz
+	assert.InDelta(t, expectedDoreProduction, production.DoreProductionOz, 150)
+
 	assert.True(t, production.HasData)
 }
 
@@ -58,6 +62,20 @@ func TestCalculateNSR(t *testing.T) {
 	assert.Equal(t, financial.SalesTaxesRoyalties, nsr.SalesTaxesRoyalties)
 	assert.Greater(t, nsr.NetSmelterReturn, 0.0)
 
+	// Smelting & Refining Charges = Treatment Charge + Refining Deductions
+	expectedSmeltingRefiningCharges := dore.TreatmentCharge + dore.RefiningDeductionsAu
+	assert.Equal(t, expectedSmeltingRefiningCharges, nsr.SmeltingRefiningCharges)
+
+	// Streaming should be passed through from dore data
+	assert.Equal(t, dore.Streaming, nsr.Streaming)
+
+	// PBR Revenue = NSR Dore + Streaming
+	expectedPBRRevenue := nsr.NSRDore + nsr.Streaming
+	assert.Equal(t, expectedPBRRevenue, nsr.PBRRevenue)
+
+	// Gold Credit should be negative (by-product credit)
+	assert.Less(t, nsr.GoldCredit, 0.0)
+
 	// NSR = NSR Dore + Shipping + Sales Taxes
 	expectedNSR := nsr.NSRDore + nsr.ShippingSelling + nsr.SalesTaxesRoyalties
 	assert.Equal(t, expectedNSR, nsr.NetSmelterReturn)
@@ -88,6 +106,13 @@ func TestCalculateCAPEX(t *testing.T) {
 	assert.Equal(t, 350000.0, capex.Project)
 	assert.Equal(t, 100000.0, capex.Leasing)
 
+	// AccretionOfMineClosureLiability should be 0 (not in test data)
+	assert.Equal(t, 0.0, capex.AccretionOfMineClosureLiability)
+
+	// Total = Sustaining + Project + Leasing + Accretion
+	expectedTotal := expectedSustainingCAPEX + 350000.0 + 100000.0 + 0.0
+	assert.Equal(t, expectedTotal, capex.Total)
+
 	// Production Based Margin = NSR - Costs
 	expectedMargin := expectedNetSmelterReturn - expectedProductionBasedCosts
 	assert.Equal(t, expectedMargin, capex.ProductionBasedMargin)
@@ -110,7 +135,8 @@ func TestCalculateCashCost(t *testing.T) {
 	}
 
 	capex := CAPEXMetrics{
-		Sustaining: expectedSustainingCAPEX,
+		Sustaining:                      expectedSustainingCAPEX,
+		AccretionOfMineClosureLiability: 0.0, // Not in test data
 	}
 
 	production := ProductionMetrics{
@@ -125,14 +151,20 @@ func TestCalculateCashCost(t *testing.T) {
 	expectedGoldCredit := expectedTotalProductionGoldOz * dore.RealizedPriceGold
 	assert.Equal(t, expectedGoldCredit, cashCost.GoldCredit)
 
-	// Cash Cost Silver = (Costs - Gold Credit) / Payable Silver Oz
+	// Cash Costs Silver (total) = Costs - Gold Credit
 	cashCostsSilver := expectedProductionBasedCosts - expectedGoldCredit
+	assert.Equal(t, cashCostsSilver, cashCost.CashCostsSilver)
+
+	// Cash Cost Silver per Oz = Cash Costs Silver / Payable Silver Oz
 	expectedCashCostPerOz := cashCostsSilver / expectedTotalProductionSilverOz
 	assert.InDelta(t, expectedCashCostPerOz, cashCost.CashCostPerOzSilver, 0.1)
 
-	// AISC = (Costs - Gold Credit + Sustaining CAPEX) / Payable Silver Oz
-	aiscSilver := cashCostsSilver + expectedSustainingCAPEX
-	expectedAISC := aiscSilver / expectedTotalProductionSilverOz
+	// AISC Silver (total) = Cash Costs Silver + Sustaining CAPEX + Accretion
+	aiscSilverTotal := cashCostsSilver + expectedSustainingCAPEX + capex.AccretionOfMineClosureLiability
+	assert.Equal(t, aiscSilverTotal, cashCost.AISCSilver)
+
+	// AISC per Oz = AISC Silver Total / Payable Silver Oz
+	expectedAISC := aiscSilverTotal / expectedTotalProductionSilverOz
 	assert.InDelta(t, expectedAISC, cashCost.AISCPerOzSilver, 0.1)
 
 	assert.True(t, cashCost.HasData)

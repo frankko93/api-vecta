@@ -104,8 +104,8 @@ func (r *repository) InsertDoreBulk(ctx context.Context, records []*DoreData) er
 			company_id, date, dore_produced_oz, silver_grade_pct, gold_grade_pct,
 			pbr_price_silver, pbr_price_gold, realized_price_silver, realized_price_gold,
 			silver_adjustment_oz, gold_adjustment_oz, ag_deductions_pct, au_deductions_pct,
-			treatment_charge, refining_deductions_au, data_type, created_by
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+			treatment_charge, refining_deductions_au, streaming, data_type, created_by
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
 	`
 
 	for _, record := range records {
@@ -113,7 +113,7 @@ func (r *repository) InsertDoreBulk(ctx context.Context, records []*DoreData) er
 			record.CompanyID, record.Date, record.DoreProducedOz, record.SilverGradePct, record.GoldGradePct,
 			record.PBRPriceSilver, record.PBRPriceGold, record.RealizedPriceSilver, record.RealizedPriceGold,
 			record.SilverAdjustmentOz, record.GoldAdjustmentOz, record.AgDeductionsPct, record.AuDeductionsPct,
-			record.TreatmentCharge, record.RefiningDeductionsAu, record.DataType, record.CreatedBy,
+			record.TreatmentCharge, record.RefiningDeductionsAu, record.Streaming, record.DataType, record.CreatedBy,
 		)
 		if err != nil {
 			return err
@@ -136,17 +136,33 @@ func (r *repository) InsertPBRBulk(ctx context.Context, records []*PBRData) erro
 
 	query := `
 		INSERT INTO pbr_data (
-			company_id, date, ore_mined_t, waste_mined_t, developments_m,
+			company_id, date,
+			open_pit_ore_t, underground_ore_t, ore_mined_t,
+			waste_mined_t, stripping_ratio,
+			mining_grade_silver_gpt, mining_grade_gold_gpt,
+			open_pit_grade_silver_gpt, underground_grade_silver_gpt,
+			open_pit_grade_gold_gpt, underground_grade_gold_gpt,
+			primary_development_m, secondary_development_opex_m, expansionary_development_m, developments_m,
 			total_tonnes_processed, feed_grade_silver_gpt, feed_grade_gold_gpt,
-			recovery_rate_silver_pct, recovery_rate_gold_pct, data_type, created_by
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+			recovery_rate_silver_pct, recovery_rate_gold_pct,
+			full_time_employees, contractors, total_headcount,
+			data_type, created_by
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)
 	`
 
 	for _, record := range records {
 		_, err = tx.ExecContext(ctx, query,
-			record.CompanyID, record.Date, record.OreMinedT, record.WasteMinedT, record.DevelopmentsM,
+			record.CompanyID, record.Date,
+			record.OpenPitOreT, record.UndergroundOreT, record.OreMinedT,
+			record.WasteMinedT, record.StrippingRatio,
+			record.MiningGradeSilverGpt, record.MiningGradeGoldGpt,
+			record.OpenPitGradeSilverGpt, record.UndergroundGradeSilverGpt,
+			record.OpenPitGradeGoldGpt, record.UndergroundGradeGoldGpt,
+			record.PrimaryDevelopmentM, record.SecondaryDevelopmentOpexM, record.ExpansionaryDevelopmentM, record.DevelopmentsM,
 			record.TotalTonnesProcessed, record.FeedGradeSilverGpt, record.FeedGradeGoldGpt,
-			record.RecoveryRateSilverPct, record.RecoveryRateGoldPct, record.DataType, record.CreatedBy,
+			record.RecoveryRateSilverPct, record.RecoveryRateGoldPct,
+			record.FullTimeEmployees, record.Contractors, record.TotalHeadcount,
+			record.DataType, record.CreatedBy,
 		)
 		if err != nil {
 			return err
@@ -197,14 +213,14 @@ func (r *repository) InsertCAPEXBulk(ctx context.Context, records []*CAPEXData) 
 	defer tx.Rollback()
 
 	query := `
-		INSERT INTO capex_data (company_id, date, category, car_number, project_name, type, amount, currency, data_type, created_by)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		INSERT INTO capex_data (company_id, date, category, car_number, project_name, type, amount, accretion_of_mine_closure_liability, currency, data_type, created_by)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	`
 
 	for _, record := range records {
 		_, err = tx.ExecContext(ctx, query,
 			record.CompanyID, record.Date, record.Category, record.CARNumber,
-			record.ProjectName, record.Type, record.Amount, record.Currency, record.DataType, record.CreatedBy,
+			record.ProjectName, record.Type, record.Amount, record.AccretionOfMineClosureLiability, record.Currency, record.DataType, record.CreatedBy,
 		)
 		if err != nil {
 			return err
@@ -305,10 +321,17 @@ func (r *repository) ListPBRData(ctx context.Context, companyID int64, year int,
 	var records []*PBRData
 
 	query := `
-		SELECT id, company_id, date, ore_mined_t, waste_mined_t, developments_m,
+		SELECT id, company_id, date,
+		       open_pit_ore_t, underground_ore_t, ore_mined_t,
+		       waste_mined_t, stripping_ratio,
+		       mining_grade_silver_gpt, mining_grade_gold_gpt,
+		       open_pit_grade_silver_gpt, underground_grade_silver_gpt,
+		       open_pit_grade_gold_gpt, underground_grade_gold_gpt,
+		       primary_development_m, secondary_development_opex_m, expansionary_development_m, developments_m,
 		       total_tonnes_processed, feed_grade_silver_gpt, feed_grade_gold_gpt,
-		       recovery_rate_silver_pct, recovery_rate_gold_pct, data_type, version,
-		       description, created_by, created_at
+		       recovery_rate_silver_pct, recovery_rate_gold_pct,
+		       full_time_employees, contractors, total_headcount,
+		       data_type, version, description, created_by, created_at
 		FROM pbr_data
 		WHERE company_id = $1 AND EXTRACT(YEAR FROM date) = $2 AND data_type = $3 
 		      AND version = $4 AND deleted_at IS NULL
@@ -373,7 +396,7 @@ func (r *repository) ListDoreData(ctx context.Context, companyID int64, year int
 		SELECT id, company_id, date, dore_produced_oz, silver_grade_pct, gold_grade_pct,
 		       pbr_price_silver, pbr_price_gold, realized_price_silver, realized_price_gold,
 		       silver_adjustment_oz, gold_adjustment_oz, ag_deductions_pct, au_deductions_pct,
-		       treatment_charge, refining_deductions_au, data_type, version,
+		       treatment_charge, refining_deductions_au, streaming, data_type, version,
 		       description, created_by, created_at
 		FROM dore_data
 		WHERE company_id = $1 AND EXTRACT(YEAR FROM date) = $2 AND data_type = $3 
@@ -444,7 +467,7 @@ func (r *repository) ListCAPEXData(ctx context.Context, companyID int64, year in
 
 	query := `
 		SELECT id, company_id, date, category, car_number, project_name, type,
-		       amount, currency, data_type, version, description, created_by, created_at
+		       amount, accretion_of_mine_closure_liability, currency, data_type, version, description, created_by, created_at
 		FROM capex_data
 		WHERE company_id = $1 AND EXTRACT(YEAR FROM date) = $2 AND data_type = $3 
 		      AND version = $4 AND deleted_at IS NULL

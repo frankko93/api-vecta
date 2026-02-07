@@ -12,6 +12,7 @@ import (
 	"github.com/gmhafiz/go8/internal/domain/auth"
 	authRepo "github.com/gmhafiz/go8/internal/domain/auth/repository"
 	"github.com/gmhafiz/go8/internal/domain/auth/usecase"
+	"github.com/gmhafiz/go8/internal/middleware"
 	"github.com/gmhafiz/go8/internal/utility/request"
 	"github.com/gmhafiz/go8/internal/utility/respond"
 )
@@ -153,13 +154,16 @@ func extractToken(r *http.Request) string {
 	return parts[1]
 }
 
-// ListUsers returns paginated list of users with permissions
+// ListUsers returns paginated list of users with permissions and companies
+// Can be filtered by company_id query param for company admins
 func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	pageStr := r.URL.Query().Get("page")
 	sizeStr := r.URL.Query().Get("size")
+	companyIDStr := r.URL.Query().Get("company_id")
 
 	page := 1
 	size := 10
+	var companyID int64
 
 	if pageStr != "" {
 		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
@@ -173,14 +177,30 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	users, total, err := h.repo.ListUsers(r.Context(), page, size)
+	if companyIDStr != "" {
+		if cid, err := strconv.ParseInt(companyIDStr, 10, 64); err == nil && cid > 0 {
+			companyID = cid
+		}
+	}
+
+	var users []*auth.User
+	var total int
+	var err error
+
+	if companyID > 0 {
+		// List users for a specific company
+		users, total, err = h.repo.ListUsersByCompany(r.Context(), companyID, page, size)
+	} else {
+		// List all users (super admin only)
+		users, total, err = h.repo.ListUsers(r.Context(), page, size)
+	}
 	if err != nil {
 		respond.Error(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	// Add permissions to each user
-	usersWithPermissions := make([]auth.UserWithPermissions, len(users))
+	// Build detailed response with permissions and companies
+	usersResponse := make([]auth.UserDetailResponse, len(users))
 	for i, user := range users {
 		permissions, err := h.repo.GetUserPermissions(r.Context(), user.ID)
 		if err != nil {
@@ -188,20 +208,435 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		usersWithPermissions[i] = auth.UserWithPermissions{
-			User:        *user,
+		companies, err := h.repo.GetUserCompanies(r.Context(), user.ID)
+		if err != nil {
+			respond.Error(w, http.StatusInternalServerError, err)
+			return
+		}
+
+		usersResponse[i] = auth.UserDetailResponse{
+			ID:          user.ID,
+			FirstName:   user.FirstName,
+			LastName:    user.LastName,
+			DNI:         user.DNI,
+			BirthDate:   user.BirthDate,
+			WorkArea:    user.WorkArea,
+			Active:      user.Active,
 			Permissions: permissions,
+			Companies:   companies,
+			CreatedAt:   user.CreatedAt,
 		}
 	}
 
-	response := map[string]interface{}{
-		"data": usersWithPermissions,
-		"pagination": map[string]interface{}{
-			"page":  page,
-			"size":  size,
-			"total": total,
-		},
+	totalPages := total / size
+	if total%size > 0 {
+		totalPages++
+	}
+
+	response := auth.UsersListResponse{
+		Users:      usersResponse,
+		Total:      total,
+		Page:       page,
+		Size:       size,
+		TotalPages: totalPages,
 	}
 
 	respond.JSON(w, http.StatusOK, response)
+}
+
+// GetUser returns a specific user by ID
+func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
+	userIDStr := chi.URLParam(r, "id")
+	userID, err := strconv.ParseInt(userIDStr, 10, 64)
+	if err != nil {
+		respond.Error(w, http.StatusBadRequest, errors.New("invalid user id"))
+		return
+	}
+
+	user, err := h.repo.GetUserByID(r.Context(), userID)
+	if err != nil {
+		if errors.Is(err, authRepo.ErrUserNotFound) {
+			respond.Error(w, http.StatusNotFound, err)
+			return
+		}
+		respond.Error(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	permissions, err := h.repo.GetUserPermissions(r.Context(), user.ID)
+	if err != nil {
+		respond.Error(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	companies, err := h.repo.GetUserCompanies(r.Context(), user.ID)
+	if err != nil {
+		respond.Error(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	response := auth.UserDetailResponse{
+		ID:          user.ID,
+		FirstName:   user.FirstName,
+		LastName:    user.LastName,
+		DNI:         user.DNI,
+		BirthDate:   user.BirthDate,
+		WorkArea:    user.WorkArea,
+		Active:      user.Active,
+		Permissions: permissions,
+		Companies:   companies,
+		CreatedAt:   user.CreatedAt,
+	}
+
+	respond.JSON(w, http.StatusOK, response)
+}
+
+// CreateUser creates a new user
+func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
+	var req auth.CreateUserRequest
+
+	if err := request.DecodeJSON(w, r, &req); err != nil {
+		respond.Error(w, http.StatusBadRequest, err)
+		return
+	}
+
+	if err := h.validator.Struct(&req); err != nil {
+		respond.Error(w, http.StatusBadRequest, err)
+		return
+	}
+
+	user, err := h.useCase.CreateUser(r.Context(), &req)
+	if err != nil {
+		if errors.Is(err, authRepo.ErrDNIAlreadyExists) {
+			respond.Error(w, http.StatusConflict, err)
+			return
+		}
+		respond.Error(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	response := auth.UserDetailResponse{
+		ID:          user.ID,
+		FirstName:   user.FirstName,
+		LastName:    user.LastName,
+		DNI:         user.DNI,
+		BirthDate:   user.BirthDate,
+		WorkArea:    user.WorkArea,
+		Active:      user.Active,
+		Permissions: req.Permissions,
+		Companies:   []auth.UserCompany{},
+		CreatedAt:   user.CreatedAt,
+	}
+
+	respond.JSON(w, http.StatusCreated, response)
+}
+
+// UpdateUser updates user information
+func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
+	userIDStr := chi.URLParam(r, "id")
+	userID, err := strconv.ParseInt(userIDStr, 10, 64)
+	if err != nil {
+		respond.Error(w, http.StatusBadRequest, errors.New("invalid user id"))
+		return
+	}
+
+	var req auth.UpdateUserRequest
+	if err := request.DecodeJSON(w, r, &req); err != nil {
+		respond.Error(w, http.StatusBadRequest, err)
+		return
+	}
+
+	// Get existing user
+	user, err := h.repo.GetUserByID(r.Context(), userID)
+	if err != nil {
+		if errors.Is(err, authRepo.ErrUserNotFound) {
+			respond.Error(w, http.StatusNotFound, err)
+			return
+		}
+		respond.Error(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	// Update fields if provided
+	if req.FirstName != "" {
+		user.FirstName = req.FirstName
+	}
+	if req.LastName != "" {
+		user.LastName = req.LastName
+	}
+	if req.WorkArea != "" {
+		user.WorkArea = req.WorkArea
+	}
+
+	err = h.repo.UpdateUser(r.Context(), user)
+	if err != nil {
+		respond.Error(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	// Fetch updated data for response
+	permissions, _ := h.repo.GetUserPermissions(r.Context(), user.ID)
+	companies, _ := h.repo.GetUserCompanies(r.Context(), user.ID)
+
+	response := auth.UserDetailResponse{
+		ID:          user.ID,
+		FirstName:   user.FirstName,
+		LastName:    user.LastName,
+		DNI:         user.DNI,
+		BirthDate:   user.BirthDate,
+		WorkArea:    user.WorkArea,
+		Active:      user.Active,
+		Permissions: permissions,
+		Companies:   companies,
+		CreatedAt:   user.CreatedAt,
+	}
+
+	respond.JSON(w, http.StatusOK, response)
+}
+
+// DeactivateUser soft deletes a user
+func (h *Handler) DeactivateUser(w http.ResponseWriter, r *http.Request) {
+	userIDStr := chi.URLParam(r, "id")
+	userID, err := strconv.ParseInt(userIDStr, 10, 64)
+	if err != nil {
+		respond.Error(w, http.StatusBadRequest, errors.New("invalid user id"))
+		return
+	}
+
+	err = h.repo.DeactivateUser(r.Context(), userID)
+	if err != nil {
+		if errors.Is(err, authRepo.ErrUserNotFound) {
+			respond.Error(w, http.StatusNotFound, err)
+			return
+		}
+		respond.Error(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	// Also invalidate all user sessions
+	_ = h.repo.DeleteUserSessions(r.Context(), userID)
+
+	respond.JSON(w, http.StatusOK, auth.MessageResponse{Message: "user deactivated successfully"})
+}
+
+// AssignUserToCompany assigns a user to a company with a role
+func (h *Handler) AssignUserToCompany(w http.ResponseWriter, r *http.Request) {
+	var req auth.AssignCompanyRequest
+
+	if err := request.DecodeJSON(w, r, &req); err != nil {
+		respond.Error(w, http.StatusBadRequest, err)
+		return
+	}
+
+	if err := h.validator.Struct(&req); err != nil {
+		respond.Error(w, http.StatusBadRequest, err)
+		return
+	}
+
+	// Verify user exists
+	_, err := h.repo.GetUserByID(r.Context(), req.UserID)
+	if err != nil {
+		if errors.Is(err, authRepo.ErrUserNotFound) {
+			respond.Error(w, http.StatusNotFound, errors.New("user not found"))
+			return
+		}
+		respond.Error(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	err = h.repo.AssignUserToCompany(r.Context(), req.UserID, req.CompanyID, req.Role)
+	if err != nil {
+		respond.Error(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	// Invalidate user's sessions so they get new company_roles on next login
+	_ = h.repo.DeleteUserSessions(r.Context(), req.UserID)
+
+	respond.JSON(w, http.StatusOK, auth.MessageResponse{
+		Message: "user assigned to company successfully",
+	})
+}
+
+// UpdateUserCompanyRole updates a user's role in a company
+func (h *Handler) UpdateUserCompanyRole(w http.ResponseWriter, r *http.Request) {
+	userIDStr := chi.URLParam(r, "user_id")
+	companyIDStr := chi.URLParam(r, "company_id")
+
+	userID, err := strconv.ParseInt(userIDStr, 10, 64)
+	if err != nil {
+		respond.Error(w, http.StatusBadRequest, errors.New("invalid user id"))
+		return
+	}
+
+	companyID, err := strconv.ParseInt(companyIDStr, 10, 64)
+	if err != nil {
+		respond.Error(w, http.StatusBadRequest, errors.New("invalid company id"))
+		return
+	}
+
+	var req auth.UpdateCompanyRoleRequest
+	if err := request.DecodeJSON(w, r, &req); err != nil {
+		respond.Error(w, http.StatusBadRequest, err)
+		return
+	}
+
+	if err := h.validator.Struct(&req); err != nil {
+		respond.Error(w, http.StatusBadRequest, err)
+		return
+	}
+
+	err = h.repo.UpdateUserCompanyRole(r.Context(), userID, companyID, req.Role)
+	if err != nil {
+		respond.Error(w, http.StatusBadRequest, err)
+		return
+	}
+
+	// Invalidate user's sessions so they get new company_roles on next login
+	_ = h.repo.DeleteUserSessions(r.Context(), userID)
+
+	respond.JSON(w, http.StatusOK, auth.MessageResponse{
+		Message: "user role updated successfully",
+	})
+}
+
+// RemoveUserFromCompany removes a user's access to a company
+func (h *Handler) RemoveUserFromCompany(w http.ResponseWriter, r *http.Request) {
+	userIDStr := chi.URLParam(r, "user_id")
+	companyIDStr := chi.URLParam(r, "company_id")
+
+	userID, err := strconv.ParseInt(userIDStr, 10, 64)
+	if err != nil {
+		respond.Error(w, http.StatusBadRequest, errors.New("invalid user id"))
+		return
+	}
+
+	companyID, err := strconv.ParseInt(companyIDStr, 10, 64)
+	if err != nil {
+		respond.Error(w, http.StatusBadRequest, errors.New("invalid company id"))
+		return
+	}
+
+	err = h.repo.RemoveUserFromCompany(r.Context(), userID, companyID)
+	if err != nil {
+		respond.Error(w, http.StatusBadRequest, err)
+		return
+	}
+
+	// Invalidate user's sessions so they get updated company_roles on next login
+	_ = h.repo.DeleteUserSessions(r.Context(), userID)
+
+	respond.JSON(w, http.StatusOK, auth.MessageResponse{
+		Message: "user removed from company successfully",
+	})
+}
+
+// AssignPermissions assigns permissions to a user
+func (h *Handler) AssignPermissions(w http.ResponseWriter, r *http.Request) {
+	var req auth.AssignPermissionsRequest
+
+	if err := request.DecodeJSON(w, r, &req); err != nil {
+		respond.Error(w, http.StatusBadRequest, err)
+		return
+	}
+
+	if err := h.validator.Struct(&req); err != nil {
+		respond.Error(w, http.StatusBadRequest, err)
+		return
+	}
+
+	// Verify user exists
+	_, err := h.repo.GetUserByID(r.Context(), req.UserID)
+	if err != nil {
+		if errors.Is(err, authRepo.ErrUserNotFound) {
+			respond.Error(w, http.StatusNotFound, errors.New("user not found"))
+			return
+		}
+		respond.Error(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	err = h.repo.AssignPermissions(r.Context(), req.UserID, req.Permissions)
+	if err != nil {
+		respond.Error(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	respond.JSON(w, http.StatusOK, auth.MessageResponse{
+		Message: "permissions assigned successfully",
+	})
+}
+
+// SetPassword allows super admin to set a user's password (no current password required)
+func (h *Handler) SetPassword(w http.ResponseWriter, r *http.Request) {
+	userIDStr := chi.URLParam(r, "id")
+	userID, err := strconv.ParseInt(userIDStr, 10, 64)
+	if err != nil {
+		respond.Error(w, http.StatusBadRequest, errors.New("invalid user id"))
+		return
+	}
+
+	var req auth.SetPasswordRequest
+	if err := request.DecodeJSON(w, r, &req); err != nil {
+		respond.Error(w, http.StatusBadRequest, err)
+		return
+	}
+
+	if err := h.validator.Struct(&req); err != nil {
+		respond.Error(w, http.StatusBadRequest, err)
+		return
+	}
+
+	err = h.useCase.SetPassword(r.Context(), userID, req.NewPassword)
+	if err != nil {
+		if errors.Is(err, authRepo.ErrUserNotFound) {
+			respond.Error(w, http.StatusNotFound, err)
+			return
+		}
+		respond.Error(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	respond.JSON(w, http.StatusOK, auth.MessageResponse{
+		Message: "password set successfully",
+	})
+}
+
+// ChangePassword allows authenticated user to change their own password
+func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	// Get user ID from context (set by RequireAuth middleware)
+	userID, ok := middleware.GetUserID(r.Context())
+	if !ok {
+		respond.Error(w, http.StatusUnauthorized, errors.New("user not authenticated"))
+		return
+	}
+
+	var req auth.ChangePasswordRequest
+	if err := request.DecodeJSON(w, r, &req); err != nil {
+		respond.Error(w, http.StatusBadRequest, err)
+		return
+	}
+
+	if err := h.validator.Struct(&req); err != nil {
+		respond.Error(w, http.StatusBadRequest, err)
+		return
+	}
+
+	err := h.useCase.ChangePassword(r.Context(), userID, req.CurrentPassword, req.NewPassword)
+	if err != nil {
+		if errors.Is(err, usecase.ErrInvalidCredentials) {
+			respond.Error(w, http.StatusUnauthorized, errors.New("current password is incorrect"))
+			return
+		}
+		if errors.Is(err, authRepo.ErrUserNotFound) {
+			respond.Error(w, http.StatusNotFound, err)
+			return
+		}
+		respond.Error(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	respond.JSON(w, http.StatusOK, auth.MessageResponse{
+		Message: "password changed successfully - please login again",
+	})
 }

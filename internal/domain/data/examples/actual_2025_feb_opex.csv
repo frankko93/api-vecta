@@ -1,6 +1,38 @@
 date,cost_center,subcategory,expense_type,amount,currency
-2025-02-15,Mine,Drilling,Labour,720000,USD
-2025-02-15,Mine,Blasting,Labour,610000,USD
-2025-02-15,Processing,CO General Operating,Labour,360000,USD
-2025-02-15,G&A,General Administration,Third Party,410000,USD
-2025-02-15,Mine,Inventory Variations,Other,1650000,USD
+2025-02-01,Mine,Drilling,Labour,1580000,USD
+2025-02-01,Mine,Blasting,Labour,1050000,USD
+2025-02-01,Mine,Loading,Labour,635000,USD
+2025-02-01,Mine,Hauling,Labour,1020000,USD
+2025-02-01,Mine,Ground Support,Labour,845000,USD
+2025-02-01,Mine,Mine Services,Materials,415000,USD
+2025-02-01,Mine,Mine Geology,Labour,380000,USD
+2025-02-01,Mine,Mine Engineering,Labour,405000,USD
+2025-02-01,Mine,Mine Maintenance,Materials,985000,USD
+2025-02-01,Mine,General Operating,Other,1400000,USD
+2025-02-01,Processing,CO General Operating,Labour,345000,USD
+2025-02-01,Processing,CO Primary Crushing,Labour,345000,USD
+2025-02-01,Processing,CO Grinding and Classifying,Labour,395000,USD
+2025-02-01,Processing,CO Regrinding and Flotation,Labour,262000,USD
+2025-02-01,Processing,CO Thickening and Filtering,Labour,120000,USD
+2025-02-01,Processing,CO Tailing Disposal,Materials,185000,USD
+2025-02-01,Processing,CO Sampling and Assaying,Materials,465000,USD
+2025-02-01,Processing,CO Plant Maintenance,Materials,760000,USD
+2025-02-01,Processing,PR Leaching,Materials,455000,USD
+2025-02-01,Processing,PR Refining,Materials,360000,USD
+2025-02-01,G&A,General Administration,Third Party,580000,USD
+2025-02-01,G&A,Maintenance Shops (Overhead),Labour,250000,USD
+2025-02-01,G&A,Warehouse,Labour,385000,USD
+2025-02-01,G&A,Purchasing,Labour,215000,USD
+2025-02-01,G&A,Safety,Labour,505000,USD
+2025-02-01,G&A,Security,Third Party,340000,USD
+2025-02-01,G&A,Legal,Third Party,2000,USD
+2025-02-01,G&A,Environmental Services,Labour,155000,USD
+2025-02-01,G&A,Camp,Third Party,1490000,USD
+2025-02-01,G&A,Public Community Relations,Other,355000,USD
+2025-02-01,G&A,Human Resources,Labour,110000,USD
+2025-02-01,G&A,New Business / Project Development,Third Party,810000,USD
+2025-02-01,G&A,Financings & Cost,Other,115000,USD
+2025-02-01,G&A,Information Systems,Materials,110000,USD
+2025-02-01,G&A,Contract Administration,Labour,25000,USD
+2025-02-01,G&A,Other Indirect,Other,155000,USD
+2025-02-01,Mine,Stockpile/WIP,Other,1780000,USD

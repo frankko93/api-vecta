@@ -103,12 +103,13 @@ const (
 	CapexSustaining CapexType = "sustaining"
 	CapexProject    CapexType = "project"
 	CapexLeasing    CapexType = "leasing"
+	CapexAccretion  CapexType = "accretion"
 )
 
 // IsValid validates capex type
 func (ct CapexType) IsValid() bool {
 	switch ct {
-	case CapexSustaining, CapexProject, CapexLeasing:
+	case CapexSustaining, CapexProject, CapexLeasing, CapexAccretion:
 		return true
 	}
 	return false

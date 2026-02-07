@@ -1,13 +1,52 @@
-date,category,car_number,project_name,type,amount,currency
-2025-01-01,Mine Equipment,C001,Equipment Q1,sustaining,120000,USD
-2025-02-01,Mine Equipment,C002,Equipment Q1,sustaining,125000,USD
-2025-03-01,Mine Equipment,C003,Equipment Q1,sustaining,130000,USD
-2025-04-01,Plant Upgrades,C004,Plant Q2,sustaining,140000,USD
-2025-05-01,Mine Infrastructure,C005,Infra Q2,sustaining,95000,USD
-2025-06-01,Mine Equipment,C006,Equipment Q2,sustaining,135000,USD
-2025-07-01,Plant Upgrades,C007,Plant Q3,sustaining,145000,USD
-2025-08-01,Mine Equipment,C008,Equipment Q3,sustaining,140000,USD
-2025-09-01,Mine Infrastructure,C009,Infra Q3,sustaining,100000,USD
-2025-10-01,Mine Equipment,C010,Equipment Q4,sustaining,145000,USD
-2025-11-01,Plant Upgrades,C011,Plant Q4,sustaining,150000,USD
-2025-12-01,Mine Equipment,C012,Equipment Q4,sustaining,150000,USD
+date,category,car_number,project_name,type,amount,accretion_of_mine_closure_liability,currency
+2025-01-01,Exploration/Mine Geology,C487EY21001,CAPEX EXPLORACIONES,sustaining,703258,0,USD
+2025-01-01,Mine Equipment,C487MY25001,Reemplazo unidad rotación Diamec 303,sustaining,0,0,USD
+2025-01-01,Mine Equipment,C487MY25002,Estaciones de Bombeo,sustaining,0,0,USD
+2025-01-01,Mine Equipment,C487MY25003,Data Infrastructure UG,sustaining,0,0,USD
+2025-01-01,Mine Equipment,C487MY25004,Leaky feeder EPW,sustaining,0,0,USD
+2025-01-01,Mine Equipment,C487MY25005,Ventiladores de mina,sustaining,0,0,USD
+2025-01-01,Mine Equipment,C487MY25006,,sustaining,0,0,USD
+2025-01-01,Mine Equipment,C487MY25007,,sustaining,0,0,USD
+2025-01-01,Mine Equipment,C487MY25008,,sustaining,0,0,USD
+2025-01-01,Mine Equipment,C487MY25009,,sustaining,0,0,USD
+2025-01-01,Mine Equipment,C487MY25010,,sustaining,0,0,USD
+2025-01-01,Plant Upgrades,C487PY25001,,sustaining,0,0,USD
+2025-01-01,Administration Projects,C487AY25001,,sustaining,0,0,USD
+2025-01-01,Administration Projects,C487AY25002,,sustaining,0,0,USD
+2025-01-01,Administration Projects,C487AY25003,,sustaining,0,0,USD
+2025-01-01,Site Infrastructure,C487AY24001,,sustaining,-3261,0,USD
+2025-01-01,Site Infrastructure,C487AY24005,,sustaining,3915,0,USD
+2025-01-01,Site Infrastructure,C487AY24003,,sustaining,3261,0,USD
+2025-01-01,Administration Projects,C48703300,,sustaining,2970,0,USD
+2025-01-01,Pre-Stripping and Capital Developments,PRE-001,,sustaining,0,0,USD
+2025-01-01,Mine Infrastructure,INF-001,,sustaining,0,0,USD
+2025-01-01,Tailings Dams and Leach Pads,TAIL-001,,sustaining,0,0,USD
+2025-01-01,Community Projects,COM-001,,sustaining,0,0,USD
+2025-01-01,Right-of-Use Asset (IFRS16),IFRS16-001,,leasing,0,0,USD
+2025-01-01,Total MPPE Additions,MPPE-TOTAL,,sustaining,709143,0,USD
+2025-01-01,Project Capital,PROJ-CAP,,project,0,0,USD
+2025-01-01,Leasing Addition - Project Capital,LEASE-PROJ,,leasing,0,0,USD
+2025-01-01,Other,OTHER-001,,sustaining,0,0,USD
+2025-01-01,Sustaining MPPE Additions,MPPE-SUST,,sustaining,709143,0,USD
+2025-01-01,Leasing Addition - Sustaining Capital,LEASE-SUST,,leasing,0,0,USD
+2025-01-01,Sustaining Capital Lease Cash Outflows,LEASE-CASH,,leasing,0,0,USD
+2025-01-01,IFRS16,IFRS16-SUM,,leasing,0,0,USD
+2025-02-01,Exploration/Mine Geology,C487EY21001,CAPEX EXPLORACIONES,sustaining,720000,0,USD
+2025-02-01,Mine Equipment,C487MY25001,Reemplazo unidad rotación Diamec 303,sustaining,8500,0,USD
+2025-02-01,Mine Equipment,C487MY25002,Estaciones de Bombeo,sustaining,12000,0,USD
+2025-02-01,Mine Infrastructure,C487MY25003,Data Infrastructure UG,sustaining,15000,0,USD
+2025-02-01,Plant Upgrades,C487PY25001,,sustaining,25000,0,USD
+2025-02-01,Administration Projects,C487AY25001,,sustaining,5000,0,USD
+2025-02-01,Site Infrastructure,C487AY24005,,sustaining,4000,0,USD
+2025-02-01,Total MPPE Additions,MPPE-TOTAL,,sustaining,789500,0,USD
+2025-02-01,Sustaining MPPE Additions,MPPE-SUST,,sustaining,789500,0,USD
+2025-03-01,Exploration/Mine Geology,C487EY21001,CAPEX EXPLORACIONES,sustaining,690000,0,USD
+2025-03-01,Mine Equipment,C487MY25001,Reemplazo unidad rotación Diamec 303,sustaining,7800,0,USD
+2025-03-01,Mine Equipment,C487MY25004,Leaky feeder EPW,sustaining,9500,0,USD
+2025-03-01,Mine Infrastructure,C487MY25005,Ventiladores de mina,sustaining,18000,0,USD
+2025-03-01,Tailings Dams and Leach Pads,C487MY25006,,sustaining,35000,0,USD
+2025-03-01,Plant Upgrades,C487PY25001,,sustaining,28000,0,USD
+2025-03-01,Administration Projects,C487AY25002,,sustaining,6500,0,USD
+2025-03-01,Community Projects,C487AY25003,,sustaining,4200,0,USD
+2025-03-01,Total MPPE Additions,MPPE-TOTAL,,sustaining,799000,0,USD
+2025-03-01,Sustaining MPPE Additions,MPPE-SUST,,sustaining,799000,0,USD

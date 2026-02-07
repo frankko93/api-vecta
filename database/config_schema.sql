@@ -63,3 +63,32 @@ INSERT INTO minerals (name, code, description) VALUES
 ('Plomo', 'PB', 'Plomo'),
 ('Litio', 'LI', 'Litio'),
 ('Hierro', 'FE', 'Hierro');
+
+-- Seed Mining Company: Cerro Moro (para datos de ejemplo)
+INSERT INTO mining_companies (name, legal_name, tax_id, address, contact_email, contact_phone, active)
+VALUES 
+('Cerro Moro', 'Cerro Moro S.A.', '30-12345678-9', 'Argentina', 'info@cerromoro.com', '+54 261 123-4567', true)
+ON CONFLICT (name) DO UPDATE 
+SET contact_phone = COALESCE(EXCLUDED.contact_phone, mining_companies.contact_phone, '+54 261 123-4567');
+
+-- Assign minerals AU and AG to Cerro Moro
+INSERT INTO company_minerals (company_id, mineral_id)
+SELECT mc.id, m.id
+FROM mining_companies mc, minerals m
+WHERE mc.name = 'Cerro Moro' AND m.code IN ('AU', 'AG')
+ON CONFLICT DO NOTHING;
+
+-- Seed company settings for Cerro Moro
+INSERT INTO company_settings (company_id, mining_type, country, royalty_percentage, notes)
+SELECT mc.id, 'both', 'Argentina', 3.5, 'Open Pit and Underground operations'
+FROM mining_companies mc
+WHERE mc.name = 'Cerro Moro'
+ON CONFLICT (company_id) DO NOTHING;
+
+-- Assign test admin user to Cerro Moro company
+-- Note: user_companies table is defined in schema.sql (must be run first)
+INSERT INTO user_companies (user_id, company_id, role)
+SELECT u.id, mc.id, 'admin'
+FROM users u, mining_companies mc
+WHERE u.dni = '99999999' AND mc.name = 'Cerro Moro'
+ON CONFLICT (user_id, company_id) DO NOTHING;

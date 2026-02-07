@@ -1,3 +1,20 @@
-date,category,car_number,project_name,type,amount,currency
-2025-02-15,Mine Equipment,C487MY25002,Equipment Feb,sustaining,520000,USD
-2025-02-15,Mine Infrastructure,,Infrastructure Feb,sustaining,225000,USD
+date,category,car_number,project_name,type,amount,accretion_of_mine_closure_liability,currency
+2025-02-01,Exploration/Mine Geology,C487EY21001,CAPEX EXPLORACIONES,sustaining,735000,0,USD
+2025-02-01,Mine Equipment,C487MY25001,Reemplazo unidad rotación Diamec 303,sustaining,9200,0,USD
+2025-02-01,Mine Equipment,C487MY25002,Estaciones de Bombeo,sustaining,13500,0,USD
+2025-02-01,Mine Infrastructure,C487MY25003,Data Infrastructure UG,sustaining,16200,0,USD
+2025-02-01,Plant Upgrades,C487PY25001,,sustaining,27500,0,USD
+2025-02-01,Administration Projects,C487AY25001,,sustaining,5400,0,USD
+2025-02-01,Site Infrastructure,C487AY24005,,sustaining,4200,0,USD
+2025-02-01,Total MPPE Additions,MPPE-TOTAL,,sustaining,811000,0,USD
+2025-02-01,Sustaining MPPE Additions,MPPE-SUST,,sustaining,811000,0,USD
+2025-02-01,Pre-Stripping and Capital Developments,PRE-001,,sustaining,0,0,USD
+2025-02-01,Tailings Dams and Leach Pads,TAIL-001,,sustaining,0,0,USD
+2025-02-01,Community Projects,COM-001,,sustaining,0,0,USD
+2025-02-01,Right-of-Use Asset (IFRS16),IFRS16-001,,leasing,0,0,USD
+2025-02-01,Project Capital,PROJ-CAP,,project,0,0,USD
+2025-02-01,Leasing Addition - Project Capital,LEASE-PROJ,,leasing,0,0,USD
+2025-02-01,Other,OTHER-001,,sustaining,0,0,USD
+2025-02-01,Leasing Addition - Sustaining Capital,LEASE-SUST,,leasing,0,0,USD
+2025-02-01,Sustaining Capital Lease Cash Outflows,LEASE-CASH,,leasing,0,0,USD
+2025-02-01,IFRS16,IFRS16-SUM,,leasing,0,0,USD

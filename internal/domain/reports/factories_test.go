@@ -52,6 +52,7 @@ func newTestDoreData() *data.DoreData {
 		AuDeductionsPct:      1.5,
 		TreatmentCharge:      5000,
 		RefiningDeductionsAu: 1200,
+		Streaming:            -969121, // Streaming agreement (negative)
 		DataType:             "actual",
 		CreatedBy:            testUserID,
 	}

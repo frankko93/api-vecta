@@ -1,10 +1,6 @@
-2026/01/10 15:50:41 Starting API version: v0.1.0
-{"time":"2026-01-10T15:50:41.447592-03:00","level":"INFO","msg":"connecting to database... "}
-{"time":"2026-01-10T15:50:42.557677-03:00","level":"INFO","msg":"retrying to connect to database..."}
-{"time":"2026-01-10T15:50:49.100067-03:00","level":"INFO","msg":"retrying to connect to database..."}
-{"time":"2026-01-10T15:50:58.177798-03:00","level":"INFO","msg":"retrying to connect to database..."}
-{"time":"2026-01-10T15:51:15.071921-03:00","level":"INFO","msg":"retrying to connect to database..."}
-{"time":"2026-01-10T15:51:15.09413-03:00","level":"INFO","msg":"database connected"}
+2026/02/06 20:19:07 Starting API version: v0.1.0
+{"time":"2026-02-06T20:19:07.61959+01:00","level":"INFO","msg":"connecting to database... "}
+{"time":"2026-02-06T20:19:07.630647+01:00","level":"INFO","msg":"database connected"}
             .,*/(#####(/*,.                               .,*((###(/*.
         .*(%%%%%%%%%%%%%%#/.                           .*#%%%%####%%%%#/.
       ./#%%%%#(/,,...,,***.           .......          *#%%%#*.   ,(%%%#/.
@@ -17,4 +13,4 @@
        ,(#%%%%%##(((##%%%%(*    .*#%%%%#(((##%%%%(,   .*#%%%##(///(#%%%#/.
          .*/###%%%%%%%###(/,      .,/##%%%%%##(/,.      .*(##%%%%%%##(*,
               .........                ......                .......
-{"time":"2026-01-10T15:51:15.094441-03:00","level":"INFO","msg":"Serving at 0.0.0.0:3080"}
+{"time":"2026-02-06T20:19:07.631111+01:00","level":"INFO","msg":"Serving at 0.0.0.0:3080"}

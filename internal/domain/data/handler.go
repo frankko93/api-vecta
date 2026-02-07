@@ -23,12 +23,18 @@ type Handler struct {
 	validator *validator.Validate
 }
 
-// RegisterHTTPEndPoints registers data import HTTP endpoints
-func RegisterHTTPEndPoints(router *chi.Mux, validator *validator.Validate, uc UseCase) {
-	h := &Handler{
+// NewHandler creates a new data handler
+func NewHandler(uc UseCase, validator *validator.Validate) *Handler {
+	return &Handler{
 		useCase:   uc,
 		validator: validator,
 	}
+}
+
+// RegisterHTTPEndPoints registers data import HTTP endpoints
+// Deprecated: Use NewHandler and register routes in initDomains for role-based access control
+func RegisterHTTPEndPoints(router *chi.Mux, validator *validator.Validate, uc UseCase) {
+	h := NewHandler(uc, validator)
 
 	router.Route("/api/v1/data", func(r chi.Router) {
 		r.Post("/import", h.Import)

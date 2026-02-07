@@ -5,6 +5,7 @@ type PBRDetailReport struct {
 	CompanyID   int64            `json:"company_id"`
 	CompanyName string           `json:"company_name"`
 	Year        int              `json:"year"`
+	Config      *CompanyConfig   `json:"config,omitempty"`
 	Months      []PBRMonthlyData `json:"months"`
 }
 
@@ -18,14 +19,30 @@ type PBRMonthlyData struct {
 
 // PBRDetail contains detailed PBR metrics
 type PBRDetail struct {
-	// Mining
-	OreMinedT     float64 `json:"ore_mined_t"`
-	WasteMinedT   float64 `json:"waste_mined_t"`
-	DevelopmentsM float64 `json:"developments_m"`
+	// Mining - Ore breakdown by mine type
+	OpenPitOreT     float64 `json:"open_pit_ore_t"`
+	UndergroundOreT float64 `json:"underground_ore_t"`
+	OreMinedT       float64 `json:"ore_mined_t"` // Total
 
-	// Calculated ratios
-	WasteOreRatio float64 `json:"waste_ore_ratio"` // Waste / Ore
-	TotalMoved    float64 `json:"total_moved"`     // Ore + Waste
+	// Mining - Waste and ratios
+	WasteMinedT    float64 `json:"waste_mined_t"`
+	StrippingRatio float64 `json:"stripping_ratio"` // Waste / OpenPit Ore
+	WasteOreRatio  float64 `json:"waste_ore_ratio"` // Waste / Total Ore (calculated)
+	TotalMoved     float64 `json:"total_moved"`     // Ore + Waste (calculated)
+
+	// Mining - Grades by mine type
+	MiningGradeSilverGpt      float64 `json:"mining_grade_silver_gpt"`
+	MiningGradeGoldGpt        float64 `json:"mining_grade_gold_gpt"`
+	OpenPitGradeSilverGpt     float64 `json:"open_pit_grade_silver_gpt"`
+	UndergroundGradeSilverGpt float64 `json:"underground_grade_silver_gpt"`
+	OpenPitGradeGoldGpt       float64 `json:"open_pit_grade_gold_gpt"`
+	UndergroundGradeGoldGpt   float64 `json:"underground_grade_gold_gpt"`
+
+	// Developments breakdown
+	PrimaryDevelopmentM       float64 `json:"primary_development_m"`
+	SecondaryDevelopmentOpexM float64 `json:"secondary_development_opex_m"`
+	ExpansionaryDevelopmentM  float64 `json:"expansionary_development_m"`
+	DevelopmentsM             float64 `json:"developments_m"` // Total
 
 	// Processing
 	TotalTonnesProcessed  float64 `json:"total_tonnes_processed"`
@@ -38,23 +55,56 @@ type PBRDetail struct {
 	TotalProductionSilverOz float64 `json:"total_production_silver_oz"`
 	TotalProductionGoldOz   float64 `json:"total_production_gold_oz"`
 
+	// Headcount
+	FullTimeEmployees int `json:"full_time_employees"`
+	Contractors       int `json:"contractors"`
+	TotalHeadcount    int `json:"total_headcount"`
+
 	HasData bool `json:"has_data"`
 }
 
 // PBRVariance contains variance for PBR metrics
 type PBRVariance struct {
-	OreMinedT               VarianceMetric `json:"ore_mined_t"`
-	WasteMinedT             VarianceMetric `json:"waste_mined_t"`
-	DevelopmentsM           VarianceMetric `json:"developments_m"`
-	WasteOreRatio           VarianceMetric `json:"waste_ore_ratio"`
-	TotalMoved              VarianceMetric `json:"total_moved"`
-	TotalTonnesProcessed    VarianceMetric `json:"total_tonnes_processed"`
-	FeedGradeSilverGpt      VarianceMetric `json:"feed_grade_silver_gpt"`
-	FeedGradeGoldGpt        VarianceMetric `json:"feed_grade_gold_gpt"`
-	RecoveryRateSilverPct   VarianceMetric `json:"recovery_rate_silver_pct"`
-	RecoveryRateGoldPct     VarianceMetric `json:"recovery_rate_gold_pct"`
+	// Mining - Ore breakdown
+	OpenPitOreT     VarianceMetric `json:"open_pit_ore_t"`
+	UndergroundOreT VarianceMetric `json:"underground_ore_t"`
+	OreMinedT       VarianceMetric `json:"ore_mined_t"`
+
+	// Mining - Waste and ratios
+	WasteMinedT    VarianceMetric `json:"waste_mined_t"`
+	StrippingRatio VarianceMetric `json:"stripping_ratio"`
+	WasteOreRatio  VarianceMetric `json:"waste_ore_ratio"`
+	TotalMoved     VarianceMetric `json:"total_moved"`
+
+	// Mining - Grades
+	MiningGradeSilverGpt      VarianceMetric `json:"mining_grade_silver_gpt"`
+	MiningGradeGoldGpt        VarianceMetric `json:"mining_grade_gold_gpt"`
+	OpenPitGradeSilverGpt     VarianceMetric `json:"open_pit_grade_silver_gpt"`
+	UndergroundGradeSilverGpt VarianceMetric `json:"underground_grade_silver_gpt"`
+	OpenPitGradeGoldGpt       VarianceMetric `json:"open_pit_grade_gold_gpt"`
+	UndergroundGradeGoldGpt   VarianceMetric `json:"underground_grade_gold_gpt"`
+
+	// Developments breakdown
+	PrimaryDevelopmentM       VarianceMetric `json:"primary_development_m"`
+	SecondaryDevelopmentOpexM VarianceMetric `json:"secondary_development_opex_m"`
+	ExpansionaryDevelopmentM  VarianceMetric `json:"expansionary_development_m"`
+	DevelopmentsM             VarianceMetric `json:"developments_m"`
+
+	// Processing
+	TotalTonnesProcessed  VarianceMetric `json:"total_tonnes_processed"`
+	FeedGradeSilverGpt    VarianceMetric `json:"feed_grade_silver_gpt"`
+	FeedGradeGoldGpt      VarianceMetric `json:"feed_grade_gold_gpt"`
+	RecoveryRateSilverPct VarianceMetric `json:"recovery_rate_silver_pct"`
+	RecoveryRateGoldPct   VarianceMetric `json:"recovery_rate_gold_pct"`
+
+	// Production
 	TotalProductionSilverOz VarianceMetric `json:"total_production_silver_oz"`
 	TotalProductionGoldOz   VarianceMetric `json:"total_production_gold_oz"`
+
+	// Headcount
+	FullTimeEmployees VarianceMetric `json:"full_time_employees"`
+	Contractors       VarianceMetric `json:"contractors"`
+	TotalHeadcount    VarianceMetric `json:"total_headcount"`
 }
 
 // DoreDetailReport represents detailed Dore report
@@ -62,6 +112,7 @@ type DoreDetailReport struct {
 	CompanyID   int64             `json:"company_id"`
 	CompanyName string            `json:"company_name"`
 	Year        int               `json:"year"`
+	Config      *CompanyConfig    `json:"config,omitempty"`
 	Months      []DoreMonthlyData `json:"months"`
 }
 
@@ -153,9 +204,11 @@ type OPEXDetailReport struct {
 	CompanyID     int64                          `json:"company_id"`
 	CompanyName   string                         `json:"company_name"`
 	Year          int                            `json:"year"`
+	Config        *CompanyConfig                 `json:"config,omitempty"`
 	Months        []OPEXMonthlyData              `json:"months"`
 	ByCostCenter  map[string]OPEXCostCenterData  `json:"by_cost_center"`
 	BySubcategory map[string]OPEXSubcategoryData `json:"by_subcategory"`
+	ByExpenseType map[string]OPEXExpenseTypeData `json:"by_expense_type"`
 }
 
 // OPEXMonthlyData represents OPEX data for a single month
@@ -180,8 +233,11 @@ type OPEXDetail struct {
 	// Total
 	Total float64 `json:"total"`
 
-	// Breakdown by subcategory (optional, can be empty)
+	// Breakdown by subcategory
 	BySubcategory map[string]float64 `json:"by_subcategory,omitempty"`
+
+	// Breakdown by expense type (Labour, Materials, Third Party, Other)
+	ByExpenseType map[string]float64 `json:"by_expense_type,omitempty"`
 
 	HasData bool `json:"has_data"`
 }
@@ -207,6 +263,15 @@ type OPEXCostCenterData struct {
 // OPEXSubcategoryData represents OPEX aggregated by subcategory
 type OPEXSubcategoryData struct {
 	Subcategory string         `json:"subcategory"`
+	CostCenter  string         `json:"cost_center"` // Which cost center this subcategory belongs to
+	Actual      float64        `json:"actual"`
+	Budget      float64        `json:"budget"`
+	Variance    VarianceMetric `json:"variance"`
+}
+
+// OPEXExpenseTypeData represents OPEX aggregated by expense type
+type OPEXExpenseTypeData struct {
+	ExpenseType string         `json:"expense_type"`
 	Actual      float64        `json:"actual"`
 	Budget      float64        `json:"budget"`
 	Variance    VarianceMetric `json:"variance"`
@@ -217,6 +282,7 @@ type CAPEXDetailReport struct {
 	CompanyID   int64                        `json:"company_id"`
 	CompanyName string                       `json:"company_name"`
 	Year        int                          `json:"year"`
+	Config      *CompanyConfig               `json:"config,omitempty"`
 	Months      []CAPEXMonthlyData           `json:"months"`
 	ByType      map[string]CAPEXTypeData     `json:"by_type"`
 	ByCategory  map[string]CAPEXCategoryData `json:"by_category"`
@@ -237,6 +303,12 @@ type CAPEXDetail struct {
 	Leasing                         float64 `json:"leasing"`
 	AccretionOfMineClosureLiability float64 `json:"accretion_of_mine_closure_liability"`
 	Total                           float64 `json:"total"`
+
+	// Breakdown by category (e.g., "Mine Equipment", "Plant Upgrades", "Exploration/Mine Geology")
+	ByCategory map[string]float64 `json:"by_category,omitempty"`
+
+	// Breakdown by project (e.g., "C487EY21001 - CAPEX EXPLORACIONES")
+	ByProject map[string]float64 `json:"by_project,omitempty"`
 
 	HasData bool `json:"has_data"`
 }

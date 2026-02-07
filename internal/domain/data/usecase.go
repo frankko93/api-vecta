@@ -63,6 +63,10 @@ func (uc *useCase) ImportData(ctx context.Context, req *ImportRequest, userID in
 		return nil, err
 	}
 
+	// After successful import, validate cross-file consistency
+	// Note: Cross-file validation will be performed when generating reports
+	// to ensure all required data types are present and aligned
+
 	return response, nil
 }
 

@@ -24,10 +24,35 @@ func (c *Calculator) CalculateDataSet(
 	// Mining & Processing from PBR
 	if pbr != nil {
 		ds.Mining = MiningMetrics{
-			OreMinedT:     pbr.OreMinedT,
-			WasteMinedT:   pbr.WasteMinedT,
-			DevelopmentsM: pbr.DevelopmentsM,
-			HasData:       true,
+			// Ore breakdown
+			OpenPitOreT:     pbr.OpenPitOreT,
+			UndergroundOreT: pbr.UndergroundOreT,
+			OreMinedT:       pbr.OreMinedT,
+
+			// Waste and ratios
+			WasteMinedT:    pbr.WasteMinedT,
+			StrippingRatio: pbr.StrippingRatio,
+
+			// Mining grades
+			MiningGradeSilverGpt:      pbr.MiningGradeSilverGpt,
+			MiningGradeGoldGpt:        pbr.MiningGradeGoldGpt,
+			OpenPitGradeSilverGpt:     pbr.OpenPitGradeSilverGpt,
+			UndergroundGradeSilverGpt: pbr.UndergroundGradeSilverGpt,
+			OpenPitGradeGoldGpt:       pbr.OpenPitGradeGoldGpt,
+			UndergroundGradeGoldGpt:   pbr.UndergroundGradeGoldGpt,
+
+			// Developments breakdown
+			PrimaryDevelopmentM:       pbr.PrimaryDevelopmentM,
+			SecondaryDevelopmentOpexM: pbr.SecondaryDevelopmentOpexM,
+			ExpansionaryDevelopmentM:  pbr.ExpansionaryDevelopmentM,
+			DevelopmentsM:             pbr.DevelopmentsM,
+
+			// Headcount
+			FullTimeEmployees: pbr.FullTimeEmployees,
+			Contractors:       pbr.Contractors,
+			TotalHeadcount:    pbr.TotalHeadcount,
+
+			HasData: true,
 		}
 
 		ds.Processing = ProcessingMetrics{
@@ -151,6 +176,12 @@ func (c *Calculator) calculateNSR(dore *data.DoreData, financial *data.Financial
 	// NSR Dore
 	nsrDore := doreRevenue - smeltingRefiningCharges
 
+	// Streaming (from dore data, usually negative)
+	streaming := dore.Streaming
+
+	// PBR Revenue = NSR Dore + Streaming (streaming is typically negative)
+	pbrRevenue := nsrDore + streaming
+
 	// Apply financial adjustments
 	var shippingSelling, salesTaxesRoyalties float64
 	if financial != nil {
@@ -161,6 +192,9 @@ func (c *Calculator) calculateNSR(dore *data.DoreData, financial *data.Financial
 	// Net Smelter Return = NSR Dore + Shipping/Selling + Sales Taxes
 	netSmelterReturn := nsrDore + shippingSelling + salesTaxesRoyalties
 
+	// Gold credit (by-product credit) - negative value
+	goldCredit := -(payableGoldOz * dore.RealizedPriceGold)
+
 	var nsrPerTonne, costPerTonne, marginPerTonne float64
 	if pbr != nil && pbr.TotalTonnesProcessed > 0 {
 		nsrPerTonne = netSmelterReturn / pbr.TotalTonnesProcessed
@@ -169,15 +203,18 @@ func (c *Calculator) calculateNSR(dore *data.DoreData, financial *data.Financial
 	}
 
 	return NSRMetrics{
-		NSRDore:                nsrDore,
-		ShippingSelling:        shippingSelling,
-		SalesTaxesRoyalties:    salesTaxesRoyalties,
+		NSRDore:                 nsrDore,
+		Streaming:               streaming,
+		PBRRevenue:              pbrRevenue,
+		ShippingSelling:         shippingSelling,
+		SalesTaxesRoyalties:     salesTaxesRoyalties,
 		SmeltingRefiningCharges: smeltingRefiningCharges,
-		NetSmelterReturn:       netSmelterReturn,
-		NSRPerTonne:            nsrPerTonne,
-		TotalCostPerTonne:      costPerTonne,
-		MarginPerTonne:         marginPerTonne,
-		HasData:                true,
+		NetSmelterReturn:        netSmelterReturn,
+		GoldCredit:              goldCredit,
+		NSRPerTonne:             nsrPerTonne,
+		TotalCostPerTonne:       costPerTonne,
+		MarginPerTonne:          marginPerTonne,
+		HasData:                 true,
 	}
 }
 
@@ -194,9 +231,8 @@ func (c *Calculator) calculateCAPEX(capexList []*data.CAPEXData, nsr NSRMetrics,
 		case "leasing":
 			leasing += capex.Amount
 		}
-		// Accretion of Mine Closure Liability - check if it's in category or subcategory
-		// For now, we'll need to add this as a separate field in CAPEXData or check category
-		// TODO: Add AccretionOfMineClosureLiability field to CAPEXData model
+		// Accretion of Mine Closure Liability - now comes from the field
+		accretion += capex.AccretionOfMineClosureLiability
 	}
 
 	total := sustaining + project + leasing + accretion
@@ -266,9 +302,29 @@ func (c *Calculator) CalculateVarianceData(actual, budget *DataSet) *VarianceDat
 
 	return &VarianceData{
 		Mining: MiningVariance{
-			OreMinedT:     VarianceMetric{Actual: actual.Mining.OreMinedT, Budget: budget.Mining.OreMinedT, Variance: actual.Mining.OreMinedT - budget.Mining.OreMinedT, VariancePct: calculateVariancePct(actual.Mining.OreMinedT, budget.Mining.OreMinedT)},
-			WasteMinedT:   VarianceMetric{Actual: actual.Mining.WasteMinedT, Budget: budget.Mining.WasteMinedT, Variance: actual.Mining.WasteMinedT - budget.Mining.WasteMinedT, VariancePct: calculateVariancePct(actual.Mining.WasteMinedT, budget.Mining.WasteMinedT)},
-			DevelopmentsM: VarianceMetric{Actual: actual.Mining.DevelopmentsM, Budget: budget.Mining.DevelopmentsM, Variance: actual.Mining.DevelopmentsM - budget.Mining.DevelopmentsM, VariancePct: calculateVariancePct(actual.Mining.DevelopmentsM, budget.Mining.DevelopmentsM)},
+			// Ore breakdown
+			OpenPitOreT:     VarianceMetric{Actual: actual.Mining.OpenPitOreT, Budget: budget.Mining.OpenPitOreT, Variance: actual.Mining.OpenPitOreT - budget.Mining.OpenPitOreT, VariancePct: calculateVariancePct(actual.Mining.OpenPitOreT, budget.Mining.OpenPitOreT)},
+			UndergroundOreT: VarianceMetric{Actual: actual.Mining.UndergroundOreT, Budget: budget.Mining.UndergroundOreT, Variance: actual.Mining.UndergroundOreT - budget.Mining.UndergroundOreT, VariancePct: calculateVariancePct(actual.Mining.UndergroundOreT, budget.Mining.UndergroundOreT)},
+			OreMinedT:       VarianceMetric{Actual: actual.Mining.OreMinedT, Budget: budget.Mining.OreMinedT, Variance: actual.Mining.OreMinedT - budget.Mining.OreMinedT, VariancePct: calculateVariancePct(actual.Mining.OreMinedT, budget.Mining.OreMinedT)},
+			// Waste and ratios
+			WasteMinedT:    VarianceMetric{Actual: actual.Mining.WasteMinedT, Budget: budget.Mining.WasteMinedT, Variance: actual.Mining.WasteMinedT - budget.Mining.WasteMinedT, VariancePct: calculateVariancePct(actual.Mining.WasteMinedT, budget.Mining.WasteMinedT)},
+			StrippingRatio: VarianceMetric{Actual: actual.Mining.StrippingRatio, Budget: budget.Mining.StrippingRatio, Variance: actual.Mining.StrippingRatio - budget.Mining.StrippingRatio, VariancePct: calculateVariancePct(actual.Mining.StrippingRatio, budget.Mining.StrippingRatio)},
+			// Mining grades
+			MiningGradeSilverGpt:      VarianceMetric{Actual: actual.Mining.MiningGradeSilverGpt, Budget: budget.Mining.MiningGradeSilverGpt, Variance: actual.Mining.MiningGradeSilverGpt - budget.Mining.MiningGradeSilverGpt, VariancePct: calculateVariancePct(actual.Mining.MiningGradeSilverGpt, budget.Mining.MiningGradeSilverGpt)},
+			MiningGradeGoldGpt:        VarianceMetric{Actual: actual.Mining.MiningGradeGoldGpt, Budget: budget.Mining.MiningGradeGoldGpt, Variance: actual.Mining.MiningGradeGoldGpt - budget.Mining.MiningGradeGoldGpt, VariancePct: calculateVariancePct(actual.Mining.MiningGradeGoldGpt, budget.Mining.MiningGradeGoldGpt)},
+			OpenPitGradeSilverGpt:     VarianceMetric{Actual: actual.Mining.OpenPitGradeSilverGpt, Budget: budget.Mining.OpenPitGradeSilverGpt, Variance: actual.Mining.OpenPitGradeSilverGpt - budget.Mining.OpenPitGradeSilverGpt, VariancePct: calculateVariancePct(actual.Mining.OpenPitGradeSilverGpt, budget.Mining.OpenPitGradeSilverGpt)},
+			UndergroundGradeSilverGpt: VarianceMetric{Actual: actual.Mining.UndergroundGradeSilverGpt, Budget: budget.Mining.UndergroundGradeSilverGpt, Variance: actual.Mining.UndergroundGradeSilverGpt - budget.Mining.UndergroundGradeSilverGpt, VariancePct: calculateVariancePct(actual.Mining.UndergroundGradeSilverGpt, budget.Mining.UndergroundGradeSilverGpt)},
+			OpenPitGradeGoldGpt:       VarianceMetric{Actual: actual.Mining.OpenPitGradeGoldGpt, Budget: budget.Mining.OpenPitGradeGoldGpt, Variance: actual.Mining.OpenPitGradeGoldGpt - budget.Mining.OpenPitGradeGoldGpt, VariancePct: calculateVariancePct(actual.Mining.OpenPitGradeGoldGpt, budget.Mining.OpenPitGradeGoldGpt)},
+			UndergroundGradeGoldGpt:   VarianceMetric{Actual: actual.Mining.UndergroundGradeGoldGpt, Budget: budget.Mining.UndergroundGradeGoldGpt, Variance: actual.Mining.UndergroundGradeGoldGpt - budget.Mining.UndergroundGradeGoldGpt, VariancePct: calculateVariancePct(actual.Mining.UndergroundGradeGoldGpt, budget.Mining.UndergroundGradeGoldGpt)},
+			// Developments
+			PrimaryDevelopmentM:       VarianceMetric{Actual: actual.Mining.PrimaryDevelopmentM, Budget: budget.Mining.PrimaryDevelopmentM, Variance: actual.Mining.PrimaryDevelopmentM - budget.Mining.PrimaryDevelopmentM, VariancePct: calculateVariancePct(actual.Mining.PrimaryDevelopmentM, budget.Mining.PrimaryDevelopmentM)},
+			SecondaryDevelopmentOpexM: VarianceMetric{Actual: actual.Mining.SecondaryDevelopmentOpexM, Budget: budget.Mining.SecondaryDevelopmentOpexM, Variance: actual.Mining.SecondaryDevelopmentOpexM - budget.Mining.SecondaryDevelopmentOpexM, VariancePct: calculateVariancePct(actual.Mining.SecondaryDevelopmentOpexM, budget.Mining.SecondaryDevelopmentOpexM)},
+			ExpansionaryDevelopmentM:  VarianceMetric{Actual: actual.Mining.ExpansionaryDevelopmentM, Budget: budget.Mining.ExpansionaryDevelopmentM, Variance: actual.Mining.ExpansionaryDevelopmentM - budget.Mining.ExpansionaryDevelopmentM, VariancePct: calculateVariancePct(actual.Mining.ExpansionaryDevelopmentM, budget.Mining.ExpansionaryDevelopmentM)},
+			DevelopmentsM:             VarianceMetric{Actual: actual.Mining.DevelopmentsM, Budget: budget.Mining.DevelopmentsM, Variance: actual.Mining.DevelopmentsM - budget.Mining.DevelopmentsM, VariancePct: calculateVariancePct(actual.Mining.DevelopmentsM, budget.Mining.DevelopmentsM)},
+			// Headcount
+			FullTimeEmployees: VarianceMetric{Actual: float64(actual.Mining.FullTimeEmployees), Budget: float64(budget.Mining.FullTimeEmployees), Variance: float64(actual.Mining.FullTimeEmployees - budget.Mining.FullTimeEmployees), VariancePct: calculateVariancePct(float64(actual.Mining.FullTimeEmployees), float64(budget.Mining.FullTimeEmployees))},
+			Contractors:       VarianceMetric{Actual: float64(actual.Mining.Contractors), Budget: float64(budget.Mining.Contractors), Variance: float64(actual.Mining.Contractors - budget.Mining.Contractors), VariancePct: calculateVariancePct(float64(actual.Mining.Contractors), float64(budget.Mining.Contractors))},
+			TotalHeadcount:    VarianceMetric{Actual: float64(actual.Mining.TotalHeadcount), Budget: float64(budget.Mining.TotalHeadcount), Variance: float64(actual.Mining.TotalHeadcount - budget.Mining.TotalHeadcount), VariancePct: calculateVariancePct(float64(actual.Mining.TotalHeadcount), float64(budget.Mining.TotalHeadcount))},
 		},
 		Processing: ProcessingVariance{
 			TotalTonnesProcessed:  VarianceMetric{Actual: actual.Processing.TotalTonnesProcessed, Budget: budget.Processing.TotalTonnesProcessed, Variance: actual.Processing.TotalTonnesProcessed - budget.Processing.TotalTonnesProcessed, VariancePct: calculateVariancePct(actual.Processing.TotalTonnesProcessed, budget.Processing.TotalTonnesProcessed)},
@@ -294,14 +350,17 @@ func (c *Calculator) CalculateVarianceData(actual, budget *DataSet) *VarianceDat
 			ProductionBasedMargin: VarianceMetric{Actual: actual.Costs.ProductionBasedMargin, Budget: budget.Costs.ProductionBasedMargin, Variance: actual.Costs.ProductionBasedMargin - budget.Costs.ProductionBasedMargin, VariancePct: calculateVariancePct(actual.Costs.ProductionBasedMargin, budget.Costs.ProductionBasedMargin)},
 		},
 		NSR: NSRVariance{
-			NSRDore:                VarianceMetric{Actual: actual.NSR.NSRDore, Budget: budget.NSR.NSRDore, Variance: actual.NSR.NSRDore - budget.NSR.NSRDore, VariancePct: calculateVariancePct(actual.NSR.NSRDore, budget.NSR.NSRDore)},
-			ShippingSelling:        VarianceMetric{Actual: actual.NSR.ShippingSelling, Budget: budget.NSR.ShippingSelling, Variance: actual.NSR.ShippingSelling - budget.NSR.ShippingSelling, VariancePct: calculateVariancePct(actual.NSR.ShippingSelling, budget.NSR.ShippingSelling)},
-			SalesTaxesRoyalties:    VarianceMetric{Actual: actual.NSR.SalesTaxesRoyalties, Budget: budget.NSR.SalesTaxesRoyalties, Variance: actual.NSR.SalesTaxesRoyalties - budget.NSR.SalesTaxesRoyalties, VariancePct: calculateVariancePct(actual.NSR.SalesTaxesRoyalties, budget.NSR.SalesTaxesRoyalties)},
+			NSRDore:                 VarianceMetric{Actual: actual.NSR.NSRDore, Budget: budget.NSR.NSRDore, Variance: actual.NSR.NSRDore - budget.NSR.NSRDore, VariancePct: calculateVariancePct(actual.NSR.NSRDore, budget.NSR.NSRDore)},
+			Streaming:               VarianceMetric{Actual: actual.NSR.Streaming, Budget: budget.NSR.Streaming, Variance: actual.NSR.Streaming - budget.NSR.Streaming, VariancePct: calculateVariancePct(actual.NSR.Streaming, budget.NSR.Streaming)},
+			PBRRevenue:              VarianceMetric{Actual: actual.NSR.PBRRevenue, Budget: budget.NSR.PBRRevenue, Variance: actual.NSR.PBRRevenue - budget.NSR.PBRRevenue, VariancePct: calculateVariancePct(actual.NSR.PBRRevenue, budget.NSR.PBRRevenue)},
+			ShippingSelling:         VarianceMetric{Actual: actual.NSR.ShippingSelling, Budget: budget.NSR.ShippingSelling, Variance: actual.NSR.ShippingSelling - budget.NSR.ShippingSelling, VariancePct: calculateVariancePct(actual.NSR.ShippingSelling, budget.NSR.ShippingSelling)},
+			SalesTaxesRoyalties:     VarianceMetric{Actual: actual.NSR.SalesTaxesRoyalties, Budget: budget.NSR.SalesTaxesRoyalties, Variance: actual.NSR.SalesTaxesRoyalties - budget.NSR.SalesTaxesRoyalties, VariancePct: calculateVariancePct(actual.NSR.SalesTaxesRoyalties, budget.NSR.SalesTaxesRoyalties)},
 			SmeltingRefiningCharges: VarianceMetric{Actual: actual.NSR.SmeltingRefiningCharges, Budget: budget.NSR.SmeltingRefiningCharges, Variance: actual.NSR.SmeltingRefiningCharges - budget.NSR.SmeltingRefiningCharges, VariancePct: calculateVariancePct(actual.NSR.SmeltingRefiningCharges, budget.NSR.SmeltingRefiningCharges)},
-			NetSmelterReturn:       VarianceMetric{Actual: actual.NSR.NetSmelterReturn, Budget: budget.NSR.NetSmelterReturn, Variance: actual.NSR.NetSmelterReturn - budget.NSR.NetSmelterReturn, VariancePct: calculateVariancePct(actual.NSR.NetSmelterReturn, budget.NSR.NetSmelterReturn)},
-			NSRPerTonne:            VarianceMetric{Actual: actual.NSR.NSRPerTonne, Budget: budget.NSR.NSRPerTonne, Variance: actual.NSR.NSRPerTonne - budget.NSR.NSRPerTonne, VariancePct: calculateVariancePct(actual.NSR.NSRPerTonne, budget.NSR.NSRPerTonne)},
-			TotalCostPerTonne:      VarianceMetric{Actual: actual.NSR.TotalCostPerTonne, Budget: budget.NSR.TotalCostPerTonne, Variance: actual.NSR.TotalCostPerTonne - budget.NSR.TotalCostPerTonne, VariancePct: calculateVariancePct(actual.NSR.TotalCostPerTonne, budget.NSR.TotalCostPerTonne)},
-			MarginPerTonne:         VarianceMetric{Actual: actual.NSR.MarginPerTonne, Budget: budget.NSR.MarginPerTonne, Variance: actual.NSR.MarginPerTonne - budget.NSR.MarginPerTonne, VariancePct: calculateVariancePct(actual.NSR.MarginPerTonne, budget.NSR.MarginPerTonne)},
+			NetSmelterReturn:        VarianceMetric{Actual: actual.NSR.NetSmelterReturn, Budget: budget.NSR.NetSmelterReturn, Variance: actual.NSR.NetSmelterReturn - budget.NSR.NetSmelterReturn, VariancePct: calculateVariancePct(actual.NSR.NetSmelterReturn, budget.NSR.NetSmelterReturn)},
+			GoldCredit:              VarianceMetric{Actual: actual.NSR.GoldCredit, Budget: budget.NSR.GoldCredit, Variance: actual.NSR.GoldCredit - budget.NSR.GoldCredit, VariancePct: calculateVariancePct(actual.NSR.GoldCredit, budget.NSR.GoldCredit)},
+			NSRPerTonne:             VarianceMetric{Actual: actual.NSR.NSRPerTonne, Budget: budget.NSR.NSRPerTonne, Variance: actual.NSR.NSRPerTonne - budget.NSR.NSRPerTonne, VariancePct: calculateVariancePct(actual.NSR.NSRPerTonne, budget.NSR.NSRPerTonne)},
+			TotalCostPerTonne:       VarianceMetric{Actual: actual.NSR.TotalCostPerTonne, Budget: budget.NSR.TotalCostPerTonne, Variance: actual.NSR.TotalCostPerTonne - budget.NSR.TotalCostPerTonne, VariancePct: calculateVariancePct(actual.NSR.TotalCostPerTonne, budget.NSR.TotalCostPerTonne)},
+			MarginPerTonne:          VarianceMetric{Actual: actual.NSR.MarginPerTonne, Budget: budget.NSR.MarginPerTonne, Variance: actual.NSR.MarginPerTonne - budget.NSR.MarginPerTonne, VariancePct: calculateVariancePct(actual.NSR.MarginPerTonne, budget.NSR.MarginPerTonne)},
 		},
 		CAPEX: CAPEXVariance{
 			Sustaining:                     VarianceMetric{Actual: actual.CAPEX.Sustaining, Budget: budget.CAPEX.Sustaining, Variance: actual.CAPEX.Sustaining - budget.CAPEX.Sustaining, VariancePct: calculateVariancePct(actual.CAPEX.Sustaining, budget.CAPEX.Sustaining)},
@@ -319,5 +378,256 @@ func (c *Calculator) CalculateVarianceData(actual, budget *DataSet) *VarianceDat
 			AISCSilver:          VarianceMetric{Actual: actual.CashCost.AISCSilver, Budget: budget.CashCost.AISCSilver, Variance: actual.CashCost.AISCSilver - budget.CashCost.AISCSilver, VariancePct: calculateVariancePct(actual.CashCost.AISCSilver, budget.CashCost.AISCSilver)},
 			GoldCredit:          VarianceMetric{Actual: actual.CashCost.GoldCredit, Budget: budget.CashCost.GoldCredit, Variance: actual.CashCost.GoldCredit - budget.CashCost.GoldCredit, VariancePct: calculateVariancePct(actual.CashCost.GoldCredit, budget.CashCost.GoldCredit)},
 		},
+	}
+}
+
+// AccumulateYTD accumulates YTD values by summing current month with previous YTD
+// monthDore is the Dore data for the current month (needed for gold credit calculation)
+func (c *Calculator) AccumulateYTD(ytd *DataSet, month *DataSet, monthDore *data.DoreData) *DataSet {
+	if month == nil {
+		return ytd
+	}
+
+	if ytd == nil {
+		// First month: YTD = month
+		return c.copyDataSet(month)
+	}
+
+	// Accumulate: YTD = previous YTD + current month
+	accumulated := &DataSet{}
+
+	// Mining: sum (except grades which are weighted averages, and headcount which takes latest)
+	totalOreYTD := ytd.Mining.OreMinedT + month.Mining.OreMinedT
+	openPitOreYTD := ytd.Mining.OpenPitOreT + month.Mining.OpenPitOreT
+	undergroundOreYTD := ytd.Mining.UndergroundOreT + month.Mining.UndergroundOreT
+
+	// Calculate weighted average grades
+	var miningGradeSilverYTD, miningGradeGoldYTD float64
+	var opGradeSilverYTD, ugGradeSilverYTD, opGradeGoldYTD, ugGradeGoldYTD float64
+
+	if totalOreYTD > 0 {
+		miningGradeSilverYTD = (ytd.Mining.MiningGradeSilverGpt*ytd.Mining.OreMinedT +
+			month.Mining.MiningGradeSilverGpt*month.Mining.OreMinedT) / totalOreYTD
+		miningGradeGoldYTD = (ytd.Mining.MiningGradeGoldGpt*ytd.Mining.OreMinedT +
+			month.Mining.MiningGradeGoldGpt*month.Mining.OreMinedT) / totalOreYTD
+	}
+	if openPitOreYTD > 0 {
+		opGradeSilverYTD = (ytd.Mining.OpenPitGradeSilverGpt*ytd.Mining.OpenPitOreT +
+			month.Mining.OpenPitGradeSilverGpt*month.Mining.OpenPitOreT) / openPitOreYTD
+		opGradeGoldYTD = (ytd.Mining.OpenPitGradeGoldGpt*ytd.Mining.OpenPitOreT +
+			month.Mining.OpenPitGradeGoldGpt*month.Mining.OpenPitOreT) / openPitOreYTD
+	}
+	if undergroundOreYTD > 0 {
+		ugGradeSilverYTD = (ytd.Mining.UndergroundGradeSilverGpt*ytd.Mining.UndergroundOreT +
+			month.Mining.UndergroundGradeSilverGpt*month.Mining.UndergroundOreT) / undergroundOreYTD
+		ugGradeGoldYTD = (ytd.Mining.UndergroundGradeGoldGpt*ytd.Mining.UndergroundOreT +
+			month.Mining.UndergroundGradeGoldGpt*month.Mining.UndergroundOreT) / undergroundOreYTD
+	}
+
+	// Calculate stripping ratio YTD
+	var strippingRatioYTD float64
+	wasteYTD := ytd.Mining.WasteMinedT + month.Mining.WasteMinedT
+	if openPitOreYTD > 0 {
+		strippingRatioYTD = wasteYTD / openPitOreYTD
+	}
+
+	accumulated.Mining = MiningMetrics{
+		// Ore breakdown
+		OpenPitOreT:     openPitOreYTD,
+		UndergroundOreT: undergroundOreYTD,
+		OreMinedT:       totalOreYTD,
+
+		// Waste and ratios
+		WasteMinedT:    wasteYTD,
+		StrippingRatio: strippingRatioYTD,
+
+		// Mining grades (weighted averages)
+		MiningGradeSilverGpt:      miningGradeSilverYTD,
+		MiningGradeGoldGpt:        miningGradeGoldYTD,
+		OpenPitGradeSilverGpt:     opGradeSilverYTD,
+		UndergroundGradeSilverGpt: ugGradeSilverYTD,
+		OpenPitGradeGoldGpt:       opGradeGoldYTD,
+		UndergroundGradeGoldGpt:   ugGradeGoldYTD,
+
+		// Developments (sum)
+		PrimaryDevelopmentM:       ytd.Mining.PrimaryDevelopmentM + month.Mining.PrimaryDevelopmentM,
+		SecondaryDevelopmentOpexM: ytd.Mining.SecondaryDevelopmentOpexM + month.Mining.SecondaryDevelopmentOpexM,
+		ExpansionaryDevelopmentM:  ytd.Mining.ExpansionaryDevelopmentM + month.Mining.ExpansionaryDevelopmentM,
+		DevelopmentsM:             ytd.Mining.DevelopmentsM + month.Mining.DevelopmentsM,
+
+		// Headcount (take current month - latest)
+		FullTimeEmployees: month.Mining.FullTimeEmployees,
+		Contractors:       month.Mining.Contractors,
+		TotalHeadcount:    month.Mining.TotalHeadcount,
+
+		HasData: ytd.Mining.HasData || month.Mining.HasData,
+	}
+
+	// Processing: sum for tonnes, weighted average for grades, ratio for recovery rates
+	totalTonnesYTD := ytd.Processing.TotalTonnesProcessed + month.Processing.TotalTonnesProcessed
+	if totalTonnesYTD > 0 {
+		// Feed grade YTD: weighted by TotalTonnesProcessed
+		feedGradeSilverYTD := (ytd.Processing.FeedGradeSilverGpt*ytd.Processing.TotalTonnesProcessed +
+			month.Processing.FeedGradeSilverGpt*month.Processing.TotalTonnesProcessed) / totalTonnesYTD
+		feedGradeGoldYTD := (ytd.Processing.FeedGradeGoldGpt*ytd.Processing.TotalTonnesProcessed +
+			month.Processing.FeedGradeGoldGpt*month.Processing.TotalTonnesProcessed) / totalTonnesYTD
+		
+		// Recovery YTD: sum(recovered metal) / sum(contained metal) * 100
+		// Contained metal = Feed Grade * Tonnes Processed / 31.1035 (grams per oz)
+		containedSilverYTD := (ytd.Processing.FeedGradeSilverGpt*ytd.Processing.TotalTonnesProcessed +
+			month.Processing.FeedGradeSilverGpt*month.Processing.TotalTonnesProcessed) / 31.1035
+		containedGoldYTD := (ytd.Processing.FeedGradeGoldGpt*ytd.Processing.TotalTonnesProcessed +
+			month.Processing.FeedGradeGoldGpt*month.Processing.TotalTonnesProcessed) / 31.1035
+		
+		// Recovered metal = Production (already accumulated)
+		recoveredSilverYTD := accumulated.Production.TotalProductionSilverOz
+		recoveredGoldYTD := accumulated.Production.TotalProductionGoldOz
+		
+		recoveryRateSilverYTD := 0.0
+		recoveryRateGoldYTD := 0.0
+		if containedSilverYTD > 0 {
+			recoveryRateSilverYTD = (recoveredSilverYTD / containedSilverYTD) * 100
+		}
+		if containedGoldYTD > 0 {
+			recoveryRateGoldYTD = (recoveredGoldYTD / containedGoldYTD) * 100
+		}
+		
+		accumulated.Processing = ProcessingMetrics{
+			TotalTonnesProcessed:  totalTonnesYTD,
+			FeedGradeSilverGpt:    feedGradeSilverYTD,
+			FeedGradeGoldGpt:       feedGradeGoldYTD,
+			RecoveryRateSilverPct: recoveryRateSilverYTD,
+			RecoveryRateGoldPct:    recoveryRateGoldYTD,
+			HasData:               ytd.Processing.HasData || month.Processing.HasData,
+		}
+	} else {
+		accumulated.Processing = ProcessingMetrics{
+			TotalTonnesProcessed:  totalTonnesYTD,
+			FeedGradeSilverGpt:    0,
+			FeedGradeGoldGpt:      0,
+			RecoveryRateSilverPct: 0,
+			RecoveryRateGoldPct:   0,
+			HasData:               ytd.Processing.HasData || month.Processing.HasData,
+		}
+	}
+
+	// Production: sum
+	accumulated.Production = ProductionMetrics{
+		TotalProductionSilverOz: ytd.Production.TotalProductionSilverOz + month.Production.TotalProductionSilverOz,
+		TotalProductionGoldOz:   ytd.Production.TotalProductionGoldOz + month.Production.TotalProductionGoldOz,
+		PayableSilverOz:         ytd.Production.PayableSilverOz + month.Production.PayableSilverOz,
+		PayableGoldOz:           ytd.Production.PayableGoldOz + month.Production.PayableGoldOz,
+		DoreProductionOz:        ytd.Production.DoreProductionOz + month.Production.DoreProductionOz,
+		HasData:                 ytd.Production.HasData || month.Production.HasData,
+	}
+
+	// Costs: sum
+	accumulated.Costs = CostMetrics{
+		Mine:                  ytd.Costs.Mine + month.Costs.Mine,
+		Processing:            ytd.Costs.Processing + month.Costs.Processing,
+		GA:                    ytd.Costs.GA + month.Costs.GA,
+		TransportShipping:     ytd.Costs.TransportShipping + month.Costs.TransportShipping,
+		InventoryVariations:   ytd.Costs.InventoryVariations + month.Costs.InventoryVariations,
+		ProductionBasedCosts:  ytd.Costs.ProductionBasedCosts + month.Costs.ProductionBasedCosts,
+		ProductionBasedMargin: ytd.Costs.ProductionBasedMargin + month.Costs.ProductionBasedMargin,
+		HasData:               ytd.Costs.HasData || month.Costs.HasData,
+	}
+
+	// NSR: sum
+	accumulated.NSR = NSRMetrics{
+		NSRDore:                 ytd.NSR.NSRDore + month.NSR.NSRDore,
+		Streaming:               ytd.NSR.Streaming + month.NSR.Streaming,
+		PBRRevenue:              ytd.NSR.PBRRevenue + month.NSR.PBRRevenue,
+		ShippingSelling:         ytd.NSR.ShippingSelling + month.NSR.ShippingSelling,
+		SalesTaxesRoyalties:     ytd.NSR.SalesTaxesRoyalties + month.NSR.SalesTaxesRoyalties,
+		SmeltingRefiningCharges: ytd.NSR.SmeltingRefiningCharges + month.NSR.SmeltingRefiningCharges,
+		NetSmelterReturn:        ytd.NSR.NetSmelterReturn + month.NSR.NetSmelterReturn,
+		GoldCredit:              ytd.NSR.GoldCredit + month.NSR.GoldCredit,
+		// Per tonne metrics: recalculate from accumulated totals (handle division by zero)
+		NSRPerTonne:       0,
+		TotalCostPerTonne: 0,
+		MarginPerTonne:    0,
+		HasData:           ytd.NSR.HasData || month.NSR.HasData,
+	}
+	if accumulated.Processing.TotalTonnesProcessed > 0 {
+		accumulated.NSR.NSRPerTonne = accumulated.NSR.NetSmelterReturn / accumulated.Processing.TotalTonnesProcessed
+		accumulated.NSR.TotalCostPerTonne = accumulated.Costs.ProductionBasedCosts / accumulated.Processing.TotalTonnesProcessed
+		accumulated.NSR.MarginPerTonne = accumulated.NSR.NSRPerTonne - accumulated.NSR.TotalCostPerTonne
+	}
+
+	// CAPEX: sum
+	accumulated.CAPEX = CAPEXMetrics{
+		Sustaining:                      ytd.CAPEX.Sustaining + month.CAPEX.Sustaining,
+		Project:                         ytd.CAPEX.Project + month.CAPEX.Project,
+		Leasing:                         ytd.CAPEX.Leasing + month.CAPEX.Leasing,
+		AccretionOfMineClosureLiability: ytd.CAPEX.AccretionOfMineClosureLiability + month.CAPEX.AccretionOfMineClosureLiability,
+		Total:                           ytd.CAPEX.Total + month.CAPEX.Total,
+		ProductionBasedMargin:            accumulated.Costs.ProductionBasedMargin,
+		PBRNetCashFlow:                   accumulated.Costs.ProductionBasedMargin - accumulated.CAPEX.Sustaining,
+		HasData:                          ytd.CAPEX.HasData || month.CAPEX.HasData,
+	}
+
+	// Cash Cost: recalculate from accumulated totals
+	// GoldCredit_YTD = sum(PayableGoldOz_m * RealizedPriceGold_m) for all months
+	if accumulated.Production.HasData && accumulated.Costs.HasData {
+		// Calculate gold credit for current month
+		var monthGoldCredit float64
+		if monthDore != nil && month.Production.PayableGoldOz > 0 {
+			monthGoldCredit = month.Production.PayableGoldOz * monthDore.RealizedPriceGold
+		}
+		
+		// Accumulate gold credit: YTD = previous YTD + current month
+		var goldCreditYTD float64
+		if ytd != nil && ytd.CashCost.HasData {
+			goldCreditYTD = ytd.CashCost.GoldCredit + monthGoldCredit
+		} else {
+			goldCreditYTD = monthGoldCredit
+		}
+		
+		// Cash costs for silver (production costs - gold credit)
+		cashCostsSilverYTD := accumulated.Costs.ProductionBasedCosts - goldCreditYTD
+		
+		var cashCostPerOzSilver, aiscPerOzSilver float64
+		if accumulated.Production.PayableSilverOz > 0 {
+			cashCostPerOzSilver = cashCostsSilverYTD / accumulated.Production.PayableSilverOz
+			aiscSilverYTD := cashCostsSilverYTD + accumulated.CAPEX.Sustaining + accumulated.CAPEX.AccretionOfMineClosureLiability
+			aiscPerOzSilver = aiscSilverYTD / accumulated.Production.PayableSilverOz
+			
+			accumulated.CashCost = CashCostMetrics{
+				CashCostPerOzSilver: cashCostPerOzSilver,
+				AISCPerOzSilver:     aiscPerOzSilver,
+				CashCostsSilver:     cashCostsSilverYTD,
+				AISCSilver:          aiscSilverYTD,
+				GoldCredit:          goldCreditYTD,
+				HasData:             true,
+			}
+		} else {
+			accumulated.CashCost = CashCostMetrics{
+				CashCostPerOzSilver: 0,
+				AISCPerOzSilver:     0,
+				CashCostsSilver:      cashCostsSilverYTD,
+				AISCSilver:           cashCostsSilverYTD + accumulated.CAPEX.Sustaining + accumulated.CAPEX.AccretionOfMineClosureLiability,
+				GoldCredit:           goldCreditYTD,
+				HasData:             true,
+			}
+		}
+	}
+
+	return accumulated
+}
+
+// copyDataSet creates a deep copy of a DataSet
+func (c *Calculator) copyDataSet(ds *DataSet) *DataSet {
+	if ds == nil {
+		return nil
+	}
+	return &DataSet{
+		Mining:     ds.Mining,
+		Processing: ds.Processing,
+		Production: ds.Production,
+		Costs:      ds.Costs,
+		NSR:        ds.NSR,
+		CAPEX:      ds.CAPEX,
+		CashCost:   ds.CashCost,
 	}
 }

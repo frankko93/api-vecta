@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/validator/v10"
 
+	authRepo "github.com/gmhafiz/go8/internal/domain/auth/repository"
 	"github.com/gmhafiz/go8/internal/middleware"
 	"github.com/gmhafiz/go8/internal/utility/request"
 	"github.com/gmhafiz/go8/internal/utility/respond"
@@ -16,15 +17,23 @@ import (
 type Handler struct {
 	useCase   UseCase
 	validator *validator.Validate
+	authRepo  authRepo.Repository
 }
 
-func RegisterHTTPEndPoints(router *chi.Mux, validator *validator.Validate, uc UseCase, detailUC DetailUseCase) {
-	h := &Handler{
+// NewHandler creates a new reports handler
+func NewHandler(uc UseCase, validator *validator.Validate, authRepository authRepo.Repository) *Handler {
+	return &Handler{
 		useCase:   uc,
 		validator: validator,
+		authRepo:  authRepository,
 	}
+}
 
-	detailH := NewDetailHandler(detailUC, validator)
+// RegisterHTTPEndPoints registers reports HTTP endpoints
+// Deprecated: Use NewHandler and register routes in initDomains for role-based access control
+func RegisterHTTPEndPoints(router *chi.Mux, validator *validator.Validate, uc UseCase, detailUC DetailUseCase, authRepository authRepo.Repository) {
+	h := NewHandler(uc, validator, authRepository)
+	detailH := NewDetailHandler(detailUC, validator, authRepository)
 
 	router.Route("/api/v1/reports", func(r chi.Router) {
 		r.Get("/summary", h.GetSummary)
@@ -37,9 +46,6 @@ func RegisterHTTPEndPoints(router *chi.Mux, validator *validator.Validate, uc Us
 		r.Get("/dore", detailH.GetDoreDetail)
 		r.Get("/opex", detailH.GetOPEXDetail)
 		r.Get("/capex", detailH.GetCAPEXDetail)
-		r.Get("/financial", detailH.GetFinancialDetail)
-		r.Get("/production", detailH.GetProductionDetail)
-		r.Get("/revenue", detailH.GetRevenueDetail)
 	})
 }
 
@@ -101,6 +107,7 @@ func (h *Handler) GetSummary(w http.ResponseWriter, r *http.Request) {
 }
 
 // SaveReport saves a report snapshot
+// Requires: editor role (can create/modify data)
 func (h *Handler) SaveReport(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.GetUserID(r.Context())
 	if !ok {
@@ -116,6 +123,16 @@ func (h *Handler) SaveReport(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.validator.Struct(req); err != nil {
 		respond.Error(w, http.StatusBadRequest, err)
+		return
+	}
+
+	// Validate user has editor role in this company (from session cache - no DB query)
+	if err := middleware.CheckCompanyRole(r.Context(), req.CompanyID, middleware.RoleEditor); err != nil {
+		if errors.Is(err, middleware.ErrCompanyAccessDenied) || errors.Is(err, middleware.ErrInsufficientRole) {
+			respond.Error(w, http.StatusForbidden, err)
+			return
+		}
+		respond.Error(w, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -154,6 +171,7 @@ func (h *Handler) ListSavedReports(w http.ResponseWriter, r *http.Request) {
 }
 
 // CompareReports compares multiple saved reports
+// Requires: viewer role (read-only access is sufficient to compare)
 func (h *Handler) CompareReports(w http.ResponseWriter, r *http.Request) {
 	var req CompareReportsRequest
 	if err := request.DecodeJSON(w, r, &req); err != nil {
@@ -164,6 +182,29 @@ func (h *Handler) CompareReports(w http.ResponseWriter, r *http.Request) {
 	if err := h.validator.Struct(req); err != nil {
 		respond.Error(w, http.StatusBadRequest, err)
 		return
+	}
+
+	// Validate user has at least viewer access to all reports' companies
+	for _, reportID := range req.ReportIDs {
+		companyID, err := h.useCase.GetReportCompanyID(r.Context(), reportID)
+		if err != nil {
+			if errors.Is(err, ErrReportNotFound) {
+				respond.Error(w, http.StatusNotFound, err)
+				return
+			}
+			respond.Error(w, http.StatusInternalServerError, err)
+			return
+		}
+
+		// Viewer role is sufficient to compare reports (from session cache - no DB query)
+		if err := middleware.CheckCompanyRole(r.Context(), companyID, middleware.RoleViewer); err != nil {
+			if errors.Is(err, middleware.ErrCompanyAccessDenied) || errors.Is(err, middleware.ErrInsufficientRole) {
+				respond.Error(w, http.StatusForbidden, errors.New("you don't have access to one or more of the selected reports"))
+				return
+			}
+			respond.Error(w, http.StatusInternalServerError, err)
+			return
+		}
 	}
 
 	comparison, err := h.useCase.CompareReports(r.Context(), req.ReportIDs)

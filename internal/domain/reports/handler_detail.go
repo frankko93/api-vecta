@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 
+	authRepo "github.com/gmhafiz/go8/internal/domain/auth/repository"
 	"github.com/gmhafiz/go8/internal/utility/respond"
 )
 
@@ -14,12 +15,16 @@ import (
 type DetailHandler struct {
 	useCase   DetailUseCase
 	validator *validator.Validate
+	authRepo  authRepo.Repository
 }
 
-func NewDetailHandler(useCase DetailUseCase, validator *validator.Validate) *DetailHandler {
+// NewDetailHandler creates a new DetailHandler
+// authRepo is available for future per-handler authorization if needed
+func NewDetailHandler(useCase DetailUseCase, validator *validator.Validate, authRepository authRepo.Repository) *DetailHandler {
 	return &DetailHandler{
 		useCase:   useCase,
 		validator: validator,
+		authRepo:  authRepository,
 	}
 }
 
@@ -167,113 +172,10 @@ func (h *DetailHandler) GetCAPEXDetail(w http.ResponseWriter, r *http.Request) {
 	respond.JSON(w, http.StatusOK, report)
 }
 
-// GetFinancialDetail returns detailed Financial report
-// @Summary Get detailed Financial report
-// @Description Returns detailed Financial report with monthly breakdown and variances
-// @Tags Reports
-// @Accept json
-// @Produce json
-// @Param company_id query int true "Company ID"
-// @Param year query int true "Year"
-// @Param months query string false "Months filter (e.g., '1,2,3')"
-// @Success 200 {object} FinancialDetailReport
-// @Router /api/v1/reports/financial [get]
-func (h *DetailHandler) GetFinancialDetail(w http.ResponseWriter, r *http.Request) {
-	req, err := h.parseDetailRequest(r)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, err)
-		return
-	}
-
-	if err := h.validator.Struct(req); err != nil {
-		respond.Error(w, http.StatusBadRequest, err)
-		return
-	}
-
-	report, err := h.useCase.GetFinancialDetail(r.Context(), req)
-	if err != nil {
-		if errors.Is(err, ErrCompanyNotFound) {
-			respond.Error(w, http.StatusNotFound, err)
-			return
-		}
-		respond.Error(w, http.StatusInternalServerError, err)
-		return
-	}
-
-	respond.JSON(w, http.StatusOK, report)
-}
-
-// GetProductionDetail returns detailed Production report
-// @Summary Get detailed Production report
-// @Description Returns detailed Production report with monthly breakdown by mineral
-// @Tags Reports
-// @Accept json
-// @Produce json
-// @Param company_id query int true "Company ID"
-// @Param year query int true "Year"
-// @Param months query string false "Months filter (e.g., '1,2,3')"
-// @Success 200 {object} ProductionDetailReport
-// @Router /api/v1/reports/production [get]
-func (h *DetailHandler) GetProductionDetail(w http.ResponseWriter, r *http.Request) {
-	req, err := h.parseDetailRequest(r)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, err)
-		return
-	}
-
-	if err := h.validator.Struct(req); err != nil {
-		respond.Error(w, http.StatusBadRequest, err)
-		return
-	}
-
-	report, err := h.useCase.GetProductionDetail(r.Context(), req)
-	if err != nil {
-		if errors.Is(err, ErrCompanyNotFound) {
-			respond.Error(w, http.StatusNotFound, err)
-			return
-		}
-		respond.Error(w, http.StatusInternalServerError, err)
-		return
-	}
-
-	respond.JSON(w, http.StatusOK, report)
-}
-
-// GetRevenueDetail returns detailed Revenue report
-// @Summary Get detailed Revenue report
-// @Description Returns detailed Revenue report with monthly breakdown by mineral
-// @Tags Reports
-// @Accept json
-// @Produce json
-// @Param company_id query int true "Company ID"
-// @Param year query int true "Year"
-// @Param months query string false "Months filter (e.g., '1,2,3')"
-// @Success 200 {object} RevenueDetailReport
-// @Router /api/v1/reports/revenue [get]
-func (h *DetailHandler) GetRevenueDetail(w http.ResponseWriter, r *http.Request) {
-	req, err := h.parseDetailRequest(r)
-	if err != nil {
-		respond.Error(w, http.StatusBadRequest, err)
-		return
-	}
-
-	if err := h.validator.Struct(req); err != nil {
-		respond.Error(w, http.StatusBadRequest, err)
-		return
-	}
-
-	report, err := h.useCase.GetRevenueDetail(r.Context(), req)
-	if err != nil {
-		if errors.Is(err, ErrCompanyNotFound) {
-			respond.Error(w, http.StatusNotFound, err)
-			return
-		}
-		respond.Error(w, http.StatusInternalServerError, err)
-		return
-	}
-
-	respond.JSON(w, http.StatusOK, report)
-}
+// NOTE: GetFinancialDetail, GetProductionDetail, GetRevenueDetail handlers removed
+// - Financial data is now in Summary/NSR and Summary/Costs
+// - Production data is now in PBR and Summary/Production
+// - Revenue data is now in Dore and Summary/NSR
 
 // parseDetailRequest parses detail request from query parameters
 func (h *DetailHandler) parseDetailRequest(r *http.Request) (*DetailRequest, error) {

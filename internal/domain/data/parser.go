@@ -23,16 +23,71 @@ func parseDate(value string) (time.Time, error) {
 	return t, nil
 }
 
-func parseFloat(value string) (float64, error) {
+// parseFloat robustly parses numeric values handling:
+// - Commas as thousand separators: "24,859" -> 24859
+// - Currency symbols: "$ 123.45" or "$123.45" -> 123.45
+// - Percentage signs: "94.01%" -> 94.01
+// - Negative values in parentheses: "(30,989)" -> -30989
+// - Whitespace: " 123 " -> 123
+// If required=true, "-" or empty values return an error. If required=false, they return 0.
+func parseFloat(value string, required bool) (float64, error) {
 	value = strings.TrimSpace(value)
-	if value == "" {
-		return 0, fmt.Errorf("empty value")
+
+	// Check for empty/dash values (before any processing)
+	isEmpty := value == "" || value == "-" || value == "$ -" || value == "$ -   "
+	if isEmpty {
+		if required {
+			return 0, fmt.Errorf("required field cannot be empty or dash")
+		}
+		return 0, nil // Optional field: empty/dash represents zero
 	}
 
+	// Handle negative values in parentheses FIRST: (123) -> -123
+	// This must be done before removing currency symbols
+	// Handle cases like " $ (202) " or "$ (8,537,997)"
+	isNegative := false
+	trimmedValue := strings.TrimSpace(value)
+
+	// Find first ( and last ) accounting for spaces
+	openIdx := strings.Index(trimmedValue, "(")
+	closeIdx := strings.LastIndex(trimmedValue, ")")
+
+	if openIdx >= 0 && closeIdx > openIdx {
+		// Extract content between parentheses
+		content := trimmedValue[openIdx+1 : closeIdx]
+		content = strings.TrimSpace(content)
+
+		// Check if there's meaningful content (not just spaces)
+		if content != "" {
+			isNegative = true
+			value = content
+		}
+	}
+
+	// Remove currency symbols ($, USD, etc.) - AFTER handling parentheses
+	value = strings.TrimPrefix(value, "$")
+	value = strings.TrimSpace(value)
+	value = strings.TrimPrefix(value, "USD")
+	value = strings.TrimSpace(value)
+
+	// Remove percentage sign
+	value = strings.TrimSuffix(value, "%")
+	value = strings.TrimSpace(value)
+
+	// Remove commas (thousand separators)
+	value = strings.ReplaceAll(value, ",", "")
+
+	// Parse as float
 	f, err := strconv.ParseFloat(value, 64)
 	if err != nil {
 		return 0, fmt.Errorf("invalid number: %s", value)
 	}
+
+	// Apply negative sign if it was in parentheses
+	if isNegative {
+		f = -f
+	}
+
 	return f, nil
 }
 
@@ -118,7 +173,7 @@ func parseProductionCSV(fileContent []byte, companyID, userID int64, dataType st
 			continue
 		}
 
-		quantity, err := parseFloat(row[2])
+		quantity, err := parseFloat(row[2], true) // Required
 		if err != nil {
 			errors = append(errors, ValidationError{Row: rowNum, Column: "quantity", Error: err.Error()})
 			continue
@@ -154,7 +209,7 @@ var doreHeaders = []string{
 	"date",
 	"pbr_price_silver", "pbr_price_gold", "realized_price_silver", "realized_price_gold",
 	"silver_adjustment_oz", "gold_adjustment_oz", "ag_deductions_pct", "au_deductions_pct",
-	"treatment_charge", "refining_deductions_au",
+	"treatment_charge", "refining_deductions_au", "streaming",
 }
 
 // parseDoreCSV parses Dore CSV and calculates production from PBR data
@@ -208,9 +263,12 @@ func parseDoreCSV(fileContent []byte, companyID, userID int64, dataType string, 
 		}
 
 		// Parse remaining values from CSV (refining-specific data)
-		values := make([]float64, 10) // 10 fields after date
+		// Most Dore fields are required, streaming is optional (defaults to 0)
+		values := make([]float64, 11) // 11 fields after date
 		for j := 1; j < len(doreHeaders); j++ {
-			values[j-1], err = parseFloat(row[j])
+			// Streaming (last field) is optional and can be negative
+			isOptional := doreHeaders[j] == "streaming"
+			values[j-1], err = parseFloat(row[j], !isOptional)
 			if err != nil {
 				errors = append(errors, ValidationError{Row: rowNum, Column: doreHeaders[j], Error: err.Error()})
 				break
@@ -236,6 +294,7 @@ func parseDoreCSV(fileContent []byte, companyID, userID int64, dataType string, 
 			AuDeductionsPct:      values[7],      // au_deductions_pct
 			TreatmentCharge:      values[8],      // treatment_charge
 			RefiningDeductionsAu: values[9],      // refining_deductions_au
+			Streaming:            values[10],     // streaming (can be negative)
 			DataType:             dataType,
 			Version:              version,
 			Description:          description,
@@ -275,9 +334,10 @@ func parsePBRCSV(fileContent []byte, companyID, userID int64, dataType string, v
 			continue
 		}
 
+		// All PBR fields are required
 		values := make([]float64, 8)
 		for j := 1; j < 9; j++ {
-			values[j-1], err = parseFloat(row[j])
+			values[j-1], err = parseFloat(row[j], true) // Required
 			if err != nil {
 				errors = append(errors, ValidationError{Row: rowNum, Column: pbrHeaders[j], Error: err.Error()})
 				break
@@ -351,7 +411,7 @@ func parseOPEXCSV(fileContent []byte, companyID, userID int64, dataType string, 
 			continue
 		}
 
-		amount, err := parseFloat(row[4])
+		amount, err := parseFloat(row[4], true) // Required
 		if err != nil {
 			errors = append(errors, ValidationError{Row: rowNum, Column: "amount", Error: err.Error()})
 			continue
@@ -385,7 +445,7 @@ func parseOPEXCSV(fileContent []byte, companyID, userID int64, dataType string, 
 	return records, errors
 }
 
-var capexHeaders = []string{"date", "category", "car_number", "project_name", "type", "amount", "currency"}
+var capexHeaders = []string{"date", "category", "car_number", "project_name", "type", "amount", "accretion_of_mine_closure_liability", "currency"}
 
 func parseCAPEXCSV(fileContent []byte, companyID, userID int64, dataType string, version int, description string) ([]*CAPEXData, []ValidationError) {
 	rows, err := readCSV(fileContent, capexHeaders)
@@ -430,7 +490,7 @@ func parseCAPEXCSV(fileContent []byte, companyID, userID int64, dataType string,
 			continue
 		}
 
-		amount, err := parseFloat(row[5])
+		amount, err := parseFloat(row[5], true) // Required
 		if err != nil {
 			errors = append(errors, ValidationError{Row: rowNum, Column: "amount", Error: err.Error()})
 			continue
@@ -440,25 +500,40 @@ func parseCAPEXCSV(fileContent []byte, companyID, userID int64, dataType string,
 			continue
 		}
 
-		currency := Currency(strings.TrimSpace(row[6]))
+		// Parse accretion_of_mine_closure_liability (optional, defaults to 0)
+		accretion := 0.0
+		if strings.TrimSpace(row[6]) != "" {
+			accretion, err = parseFloat(row[6], false) // Optional
+			if err != nil {
+				errors = append(errors, ValidationError{Row: rowNum, Column: "accretion_of_mine_closure_liability", Error: err.Error()})
+				continue
+			}
+			if accretion < 0 {
+				errors = append(errors, ValidationError{Row: rowNum, Column: "accretion_of_mine_closure_liability", Error: "accretion cannot be negative"})
+				continue
+			}
+		}
+
+		currency := Currency(strings.TrimSpace(row[7]))
 		if !currency.IsValid() {
-			errors = append(errors, ValidationError{Row: rowNum, Column: "currency", Error: fmt.Sprintf("invalid currency: %s", row[6])})
+			errors = append(errors, ValidationError{Row: rowNum, Column: "currency", Error: fmt.Sprintf("invalid currency: %s", row[7])})
 			continue
 		}
 
 		records = append(records, &CAPEXData{
-			CompanyID:   companyID,
-			Date:        date,
-			Category:    category,
-			CARNumber:   carNumber,
-			ProjectName: projectName,
-			Type:        string(capexType),
-			Amount:      amount,
-			Currency:    string(currency),
-			DataType:    dataType,
-			Version:     version,
-			Description: description,
-			CreatedBy:   userID,
+			CompanyID:                       companyID,
+			Date:                            date,
+			Category:                        category,
+			CARNumber:                       carNumber,
+			ProjectName:                     projectName,
+			Type:                            string(capexType),
+			Amount:                          amount,
+			AccretionOfMineClosureLiability: accretion,
+			Currency:                        string(currency),
+			DataType:                        dataType,
+			Version:                         version,
+			Description:                     description,
+			CreatedBy:                       userID,
 		})
 	}
 
@@ -497,7 +572,7 @@ func parseRevenueCSV(fileContent []byte, companyID, userID int64, dataType strin
 			continue
 		}
 
-		quantitySold, err := parseFloat(row[2])
+		quantitySold, err := parseFloat(row[2], true) // Required
 		if err != nil {
 			errors = append(errors, ValidationError{Row: rowNum, Column: "quantity_sold", Error: err.Error()})
 			continue
@@ -507,7 +582,7 @@ func parseRevenueCSV(fileContent []byte, companyID, userID int64, dataType strin
 			continue
 		}
 
-		unitPrice, err := parseFloat(row[3])
+		unitPrice, err := parseFloat(row[3], true) // Required
 		if err != nil {
 			errors = append(errors, ValidationError{Row: rowNum, Column: "unit_price", Error: err.Error()})
 			continue
@@ -565,19 +640,19 @@ func parseFinancialCSV(fileContent []byte, companyID, userID int64, dataType str
 			continue
 		}
 
-		shippingSelling, err := parseFloat(row[1])
+		shippingSelling, err := parseFloat(row[1], true) // Required
 		if err != nil {
 			errors = append(errors, ValidationError{Row: rowNum, Column: "shipping_selling", Error: err.Error()})
 			continue
 		}
 
-		salesTaxesRoyalties, err := parseFloat(row[2])
+		salesTaxesRoyalties, err := parseFloat(row[2], true) // Required
 		if err != nil {
 			errors = append(errors, ValidationError{Row: rowNum, Column: "sales_taxes_royalties", Error: err.Error()})
 			continue
 		}
 
-		otherAdjustments, err := parseFloat(row[3])
+		otherAdjustments, err := parseFloat(row[3], false) // Optional (not used in calculations)
 		if err != nil {
 			errors = append(errors, ValidationError{Row: rowNum, Column: "other_adjustments", Error: err.Error()})
 			continue
