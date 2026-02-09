@@ -480,8 +480,8 @@ func parseCAPEXCSV(fileContent []byte, companyID, userID int64, dataType string,
 
 		projectName := strings.TrimSpace(row[3])
 		if projectName == "" {
-			errors = append(errors, ValidationError{Row: rowNum, Column: "project_name", Error: "project name is required"})
-			continue
+			// Use category as fallback for summary/total rows without a specific project name
+			projectName = category
 		}
 
 		capexType := CapexType(strings.TrimSpace(row[4]))
@@ -495,10 +495,7 @@ func parseCAPEXCSV(fileContent []byte, companyID, userID int64, dataType string,
 			errors = append(errors, ValidationError{Row: rowNum, Column: "amount", Error: err.Error()})
 			continue
 		}
-		if amount < 0 {
-			errors = append(errors, ValidationError{Row: rowNum, Column: "amount", Error: "amount cannot be negative"})
-			continue
-		}
+		// CAPEX allows negative amounts for accounting adjustments/reversals
 
 		// Parse accretion_of_mine_closure_liability (optional, defaults to 0)
 		accretion := 0.0
