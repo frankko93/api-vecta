@@ -2,6 +2,7 @@ package reports
 
 import (
 	"context"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
@@ -42,10 +43,10 @@ func (uc *useCase) GetSummary(ctx context.Context, req *SummaryRequest) (*Summar
 		return nil, err
 	}
 
-	// MANDATORY: Validate cross-file consistency before calculations (fail fast)
-	// This ensures all required data types are present and aligned across months
+	// Cross-file validation: log warnings but don't block the summary.
+	// The report should work with whatever data is available.
 	if err := validateCrossFile(ctx, uc.repo, req.CompanyID, req.Year); err != nil {
-		return nil, err
+		slog.Warn("cross-file validation warning", "company_id", req.CompanyID, "year", req.Year, "warning", err.Error())
 	}
 
 	// Get all data for the year
