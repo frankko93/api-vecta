@@ -497,8 +497,10 @@ func TestReconciliation(t *testing.T) {
 	}
 
 	financialActual := &data.FinancialData{
-		ShippingSelling:     -202,
-		SalesTaxesRoyalties: 465867,
+		ShippingSelling:      -202,
+		SalesTaxes:           465867,
+		Royalties:            0,
+		OtherSalesDeductions: 0,
 	}
 
 	opexActual := []*data.OPEXData{
@@ -554,8 +556,10 @@ func TestReconciliation(t *testing.T) {
 	}
 
 	financialBudget := &data.FinancialData{
-		ShippingSelling:     120807,
-		SalesTaxesRoyalties: 1230132,
+		ShippingSelling:      120807,
+		SalesTaxes:           1230132,
+		Royalties:            0,
+		OtherSalesDeductions: 0,
 	}
 
 	opexBudget := []*data.OPEXData{

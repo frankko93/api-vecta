@@ -15,23 +15,23 @@ type reportsRepositoryAdapter struct {
 
 // Implement data.Repository interface methods needed for validation
 func (a *reportsRepositoryAdapter) ListPBRData(ctx context.Context, companyID int64, year int, dataType string, version int) ([]*data.PBRData, error) {
-	return a.repo.GetPBRData(ctx, companyID, year, dataType)
+	return a.repo.GetPBRData(ctx, companyID, year, dataType, version)
 }
 
 func (a *reportsRepositoryAdapter) ListDoreData(ctx context.Context, companyID int64, year int, dataType string, version int) ([]*data.DoreData, error) {
-	return a.repo.GetDoreData(ctx, companyID, year, dataType)
+	return a.repo.GetDoreData(ctx, companyID, year, dataType, version)
 }
 
 func (a *reportsRepositoryAdapter) ListOPEXData(ctx context.Context, companyID int64, year int, dataType string, version int) ([]*data.OPEXData, error) {
-	return a.repo.GetOPEXData(ctx, companyID, year, dataType)
+	return a.repo.GetOPEXData(ctx, companyID, year, dataType, version)
 }
 
 func (a *reportsRepositoryAdapter) ListCAPEXData(ctx context.Context, companyID int64, year int, dataType string, version int) ([]*data.CAPEXData, error) {
-	return a.repo.GetCAPEXData(ctx, companyID, year, dataType)
+	return a.repo.GetCAPEXData(ctx, companyID, year, dataType, version)
 }
 
 func (a *reportsRepositoryAdapter) ListFinancialData(ctx context.Context, companyID int64, year int, dataType string, version int) ([]*data.FinancialData, error) {
-	return a.repo.GetFinancialData(ctx, companyID, year, dataType)
+	return a.repo.GetFinancialData(ctx, companyID, year, dataType, version)
 }
 
 // Unused methods required by data.Repository interface (not needed for validation)

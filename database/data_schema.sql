@@ -167,13 +167,15 @@ CREATE TABLE revenue_data (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
--- Financial Data (Shipping, Sales Taxes, Royalties)
+-- Financial Data (Shipping, Sales Taxes, Royalties, Other Deductions)
 CREATE TABLE financial_data (
     id BIGSERIAL PRIMARY KEY,
     company_id BIGINT NOT NULL REFERENCES mining_companies(id) ON DELETE CASCADE,
     date DATE NOT NULL,
     shipping_selling DECIMAL(15,2) DEFAULT 0,
-    sales_taxes_royalties DECIMAL(15,2) DEFAULT 0,
+    sales_taxes DECIMAL(15,2) DEFAULT 0,
+    royalties DECIMAL(15,2) DEFAULT 0,
+    other_sales_deductions DECIMAL(15,2) DEFAULT 0,
     other_adjustments DECIMAL(15,2) DEFAULT 0,
     currency VARCHAR(10) NOT NULL DEFAULT 'USD',
     data_type VARCHAR(20) NOT NULL DEFAULT 'actual',

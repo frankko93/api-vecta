@@ -25,7 +25,7 @@ type SaveReportRequest struct {
 	Description   string `json:"description"`
 	CompanyID     int64  `json:"company_id" validate:"required,gt=0"`
 	Year          int    `json:"year" validate:"required,gte=2000"`
-	BudgetVersion int    `json:"budget_version"` // Optional, defaults to 1
+	BudgetVersion int    `json:"budget_version" validate:"required,gte=1"` // Required: budget version to use
 }
 
 // CompareReportsRequest represents request to compare multiple saved reports

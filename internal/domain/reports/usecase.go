@@ -49,53 +49,57 @@ func (uc *useCase) GetSummary(ctx context.Context, req *SummaryRequest) (*Summar
 		slog.Warn("cross-file validation warning", "company_id", req.CompanyID, "year", req.Year, "warning", err.Error())
 	}
 
+	// Actual data always uses version 1; budget uses the requested version
+	const actualVersion = 1
+	budgetVersion := req.BudgetVersion
+
 	// Get all data for the year
-	pbrActual, err := uc.repo.GetPBRData(ctx, req.CompanyID, req.Year, "actual")
+	pbrActual, err := uc.repo.GetPBRData(ctx, req.CompanyID, req.Year, "actual", actualVersion)
 	if err != nil {
 		return nil, err
 	}
 
-	pbrBudget, err := uc.repo.GetPBRData(ctx, req.CompanyID, req.Year, "budget")
+	pbrBudget, err := uc.repo.GetPBRData(ctx, req.CompanyID, req.Year, "budget", budgetVersion)
 	if err != nil {
 		return nil, err
 	}
 
-	doreActual, err := uc.repo.GetDoreData(ctx, req.CompanyID, req.Year, "actual")
+	doreActual, err := uc.repo.GetDoreData(ctx, req.CompanyID, req.Year, "actual", actualVersion)
 	if err != nil {
 		return nil, err
 	}
 
-	doreBudget, err := uc.repo.GetDoreData(ctx, req.CompanyID, req.Year, "budget")
+	doreBudget, err := uc.repo.GetDoreData(ctx, req.CompanyID, req.Year, "budget", budgetVersion)
 	if err != nil {
 		return nil, err
 	}
 
-	opexActual, err := uc.repo.GetOPEXData(ctx, req.CompanyID, req.Year, "actual")
+	opexActual, err := uc.repo.GetOPEXData(ctx, req.CompanyID, req.Year, "actual", actualVersion)
 	if err != nil {
 		return nil, err
 	}
 
-	opexBudget, err := uc.repo.GetOPEXData(ctx, req.CompanyID, req.Year, "budget")
+	opexBudget, err := uc.repo.GetOPEXData(ctx, req.CompanyID, req.Year, "budget", budgetVersion)
 	if err != nil {
 		return nil, err
 	}
 
-	capexActual, err := uc.repo.GetCAPEXData(ctx, req.CompanyID, req.Year, "actual")
+	capexActual, err := uc.repo.GetCAPEXData(ctx, req.CompanyID, req.Year, "actual", actualVersion)
 	if err != nil {
 		return nil, err
 	}
 
-	capexBudget, err := uc.repo.GetCAPEXData(ctx, req.CompanyID, req.Year, "budget")
+	capexBudget, err := uc.repo.GetCAPEXData(ctx, req.CompanyID, req.Year, "budget", budgetVersion)
 	if err != nil {
 		return nil, err
 	}
 
-	financialActual, err := uc.repo.GetFinancialData(ctx, req.CompanyID, req.Year, "actual")
+	financialActual, err := uc.repo.GetFinancialData(ctx, req.CompanyID, req.Year, "actual", actualVersion)
 	if err != nil {
 		return nil, err
 	}
 
-	financialBudget, err := uc.repo.GetFinancialData(ctx, req.CompanyID, req.Year, "budget")
+	financialBudget, err := uc.repo.GetFinancialData(ctx, req.CompanyID, req.Year, "budget", budgetVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -227,13 +231,15 @@ func (uc *useCase) buildMonthlyData(
 		// Calculate YTD only up to the last loaded actual month
 		var ytd *YTDData
 		if actualHasData {
-			// Get Dore data for current month (needed for gold credit calculation)
+			// Get Dore and Financial data for current month (needed for cash cost calculation)
 			actualDore := doreActualByMonth[month]
 			budgetDore := doreBudgetByMonth[month]
+			actualFinancial := financialActualByMonth[month]
+			budgetFinancial := financialBudgetByMonth[month]
 
-			ytdActual = uc.calculator.AccumulateYTD(ytdActual, actualDataSet, actualDore)
+			ytdActual = uc.calculator.AccumulateYTD(ytdActual, actualDataSet, actualDore, actualFinancial)
 			if budgetHasData {
-				ytdBudget = uc.calculator.AccumulateYTD(ytdBudget, budgetDataSet, budgetDore)
+				ytdBudget = uc.calculator.AccumulateYTD(ytdBudget, budgetDataSet, budgetDore, budgetFinancial)
 			}
 
 			var ytdVariance *VarianceData

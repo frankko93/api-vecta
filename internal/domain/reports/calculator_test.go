@@ -59,7 +59,10 @@ func TestCalculateNSR(t *testing.T) {
 	// Verify NSR components are calculated
 	assert.Greater(t, nsr.NSRDore, 0.0)
 	assert.Equal(t, financial.ShippingSelling, nsr.ShippingSelling)
-	assert.Equal(t, financial.SalesTaxesRoyalties, nsr.SalesTaxesRoyalties)
+	assert.Equal(t, financial.SalesTaxes, nsr.SalesTaxes)
+	assert.Equal(t, financial.Royalties, nsr.Royalties)
+	assert.Equal(t, financial.SalesTaxes+financial.Royalties, nsr.SalesTaxesRoyalties)
+	assert.Equal(t, financial.OtherSalesDeductions, nsr.OtherSalesDeductions)
 	assert.Greater(t, nsr.NetSmelterReturn, 0.0)
 
 	// Smelting & Refining Charges = Treatment Charge + Refining Deductions
@@ -76,9 +79,13 @@ func TestCalculateNSR(t *testing.T) {
 	// Gold Credit should be negative (by-product credit)
 	assert.Less(t, nsr.GoldCredit, 0.0)
 
-	// NSR = NSR Dore + Shipping + Sales Taxes
-	expectedNSR := nsr.NSRDore + nsr.ShippingSelling + nsr.SalesTaxesRoyalties
+	// NSR = NSR Dore + Shipping + SalesTaxes + Royalties + OtherSalesDeductions
+	expectedNSR := nsr.NSRDore + nsr.ShippingSelling + nsr.SalesTaxes + nsr.Royalties + nsr.OtherSalesDeductions
 	assert.Equal(t, expectedNSR, nsr.NetSmelterReturn)
+
+	// Metal prices should be propagated from dore data
+	assert.Equal(t, dore.RealizedPriceSilver, nsr.SilverPricePerOz)
+	assert.Equal(t, dore.RealizedPriceGold, nsr.GoldPricePerOz)
 
 	// Per tonne calculations
 	assert.Greater(t, nsr.NSRPerTonne, 0.0)
@@ -128,6 +135,7 @@ func TestCalculateCashCost(t *testing.T) {
 	calc := NewCalculator()
 
 	dore := newTestDoreData()
+	financial := newTestFinancialData()
 
 	costs := CostMetrics{
 		ProductionBasedCosts: expectedProductionBasedCosts,
@@ -145,14 +153,25 @@ func TestCalculateCashCost(t *testing.T) {
 		HasData:         true,
 	}
 
-	cashCost := calc.calculateCashCost(costs, capex, production, dore)
+	// NSR metrics needed for smelting_refining_charges
+	nsr := NSRMetrics{
+		SmeltingRefiningCharges: dore.TreatmentCharge + dore.RefiningDeductionsAu,
+	}
+
+	cashCost := calc.calculateCashCost(costs, capex, production, dore, nsr, financial)
 
 	// Gold Credit = Payable Gold * Price
 	expectedGoldCredit := expectedTotalProductionGoldOz * dore.RealizedPriceGold
 	assert.Equal(t, expectedGoldCredit, cashCost.GoldCredit)
 
-	// Cash Costs Silver (total) = Costs - Gold Credit
-	cashCostsSilver := expectedProductionBasedCosts - expectedGoldCredit
+	// CORRECTED Cash Costs Silver (total) = ProdCosts + Shipping + Smelting + SalesTaxes + Royalties + OtherDeductions - GoldCredit
+	cashCostsSilver := expectedProductionBasedCosts +
+		financial.ShippingSelling +
+		nsr.SmeltingRefiningCharges +
+		financial.SalesTaxes +
+		financial.Royalties +
+		financial.OtherSalesDeductions -
+		expectedGoldCredit
 	assert.Equal(t, cashCostsSilver, cashCost.CashCostsSilver)
 
 	// Cash Cost Silver per Oz = Cash Costs Silver / Payable Silver Oz
@@ -166,6 +185,10 @@ func TestCalculateCashCost(t *testing.T) {
 	// AISC per Oz = AISC Silver Total / Payable Silver Oz
 	expectedAISC := aiscSilverTotal / expectedTotalProductionSilverOz
 	assert.InDelta(t, expectedAISC, cashCost.AISCPerOzSilver, 0.1)
+
+	// Sustaining Capital per Oz = Sustaining CAPEX / Payable Silver Oz
+	expectedSustCapPerOz := expectedSustainingCAPEX / expectedTotalProductionSilverOz
+	assert.InDelta(t, expectedSustCapPerOz, cashCost.SustainingCapitalPerOz, 0.1)
 
 	assert.True(t, cashCost.HasData)
 }

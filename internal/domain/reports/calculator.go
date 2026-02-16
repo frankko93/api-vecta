@@ -87,7 +87,7 @@ func (c *Calculator) CalculateDataSet(
 
 	// Calculate Cash Cost & AISC
 	if ds.Production.HasData && ds.Costs.HasData {
-		ds.CashCost = c.calculateCashCost(ds.Costs, ds.CAPEX, ds.Production, dore)
+		ds.CashCost = c.calculateCashCost(ds.Costs, ds.CAPEX, ds.Production, dore, ds.NSR, financial)
 	}
 
 	return ds
@@ -183,14 +183,17 @@ func (c *Calculator) calculateNSR(dore *data.DoreData, financial *data.Financial
 	pbrRevenue := nsrDore + streaming
 
 	// Apply financial adjustments
-	var shippingSelling, salesTaxesRoyalties float64
+	var shippingSelling, salesTaxes, royalties, otherSalesDeductions float64
 	if financial != nil {
 		shippingSelling = financial.ShippingSelling
-		salesTaxesRoyalties = financial.SalesTaxesRoyalties
+		salesTaxes = financial.SalesTaxes
+		royalties = financial.Royalties
+		otherSalesDeductions = financial.OtherSalesDeductions
 	}
+	salesTaxesRoyalties := salesTaxes + royalties
 
-	// Net Smelter Return = NSR Dore + Shipping/Selling + Sales Taxes
-	netSmelterReturn := nsrDore + shippingSelling + salesTaxesRoyalties
+	// Net Smelter Return = NSR Dore + Shipping/Selling + Sales Taxes + Royalties + Other Sales Deductions
+	netSmelterReturn := nsrDore + shippingSelling + salesTaxes + royalties + otherSalesDeductions
 
 	// Gold credit (by-product credit) - negative value
 	goldCredit := -(payableGoldOz * dore.RealizedPriceGold)
@@ -207,10 +210,15 @@ func (c *Calculator) calculateNSR(dore *data.DoreData, financial *data.Financial
 		Streaming:               streaming,
 		PBRRevenue:              pbrRevenue,
 		ShippingSelling:         shippingSelling,
+		SalesTaxes:              salesTaxes,
+		Royalties:               royalties,
 		SalesTaxesRoyalties:     salesTaxesRoyalties,
+		OtherSalesDeductions:    otherSalesDeductions,
 		SmeltingRefiningCharges: smeltingRefiningCharges,
 		NetSmelterReturn:        netSmelterReturn,
 		GoldCredit:              goldCredit,
+		SilverPricePerOz:        dore.RealizedPriceSilver,
+		GoldPricePerOz:          dore.RealizedPriceGold,
 		NSRPerTonne:             nsrPerTonne,
 		TotalCostPerTonne:       costPerTonne,
 		MarginPerTonne:          marginPerTonne,
@@ -256,33 +264,58 @@ func (c *Calculator) calculateCAPEX(capexList []*data.CAPEXData, nsr NSRMetrics,
 }
 
 // calculateCashCost calculates cash cost and AISC per ounce
-func (c *Calculator) calculateCashCost(costs CostMetrics, capex CAPEXMetrics, production ProductionMetrics, dore *data.DoreData) CashCostMetrics {
-	// Gold credit (by-product credit)
+// CORRECTED: Includes shipping, smelting, taxes, royalties, and other deductions
+// Formula: CashCost = ProdCosts + Shipping + Smelting + SalesTaxes + Royalties + OtherDeductions - GoldCredit
+func (c *Calculator) calculateCashCost(costs CostMetrics, capex CAPEXMetrics, production ProductionMetrics, dore *data.DoreData, nsr NSRMetrics, financial *data.FinancialData) CashCostMetrics {
+	// Gold credit (by-product credit) - positive value, will be subtracted
 	var goldCredit float64
 	if dore != nil && production.PayableGoldOz > 0 {
 		goldCredit = production.PayableGoldOz * dore.RealizedPriceGold
 	}
 
-	// Cash costs for silver (production costs - gold credit)
-	cashCostsSilver := costs.ProductionBasedCosts - goldCredit
+	// Get financial components for cash cost calculation
+	// Values from financial data are stored with their natural signs:
+	//   shipping_selling = -202 (negative = reduces cash cost)
+	//   sales_taxes = +465,867 (positive = increases cash cost)
+	var shippingSelling, salesTaxes, royalties, otherSalesDeductions float64
+	if financial != nil {
+		shippingSelling = financial.ShippingSelling
+		salesTaxes = financial.SalesTaxes
+		royalties = financial.Royalties
+		otherSalesDeductions = financial.OtherSalesDeductions
+	}
+
+	// Cash costs for silver = production costs + shipping + smelting + taxes + royalties + other - gold credit
+	cashCostsSilver := costs.ProductionBasedCosts +
+		shippingSelling +
+		nsr.SmeltingRefiningCharges +
+		salesTaxes +
+		royalties +
+		otherSalesDeductions -
+		goldCredit
 
 	// Cash cost per payable ounce of silver
-	var cashCostPerOzSilver, aiscPerOzSilver float64
+	var cashCostPerOzSilver, aiscPerOzSilver, sustainingCapitalPerOz float64
+	aiscSilver := cashCostsSilver + capex.Sustaining + capex.AccretionOfMineClosureLiability
+
 	if production.PayableSilverOz > 0 {
 		cashCostPerOzSilver = cashCostsSilver / production.PayableSilverOz
 
 		// AISC = Cash costs + Sustaining CAPEX + Accretion of Mine Closure Liability
-		aiscSilver := cashCostsSilver + capex.Sustaining + capex.AccretionOfMineClosureLiability
 		aiscPerOzSilver = aiscSilver / production.PayableSilverOz
+
+		// Sustaining Capital per oz
+		sustainingCapitalPerOz = capex.Sustaining / production.PayableSilverOz
 	}
 
 	return CashCostMetrics{
-		CashCostPerOzSilver: cashCostPerOzSilver,
-		AISCPerOzSilver:     aiscPerOzSilver,
-		CashCostsSilver:     cashCostsSilver,
-		AISCSilver:          cashCostsSilver + capex.Sustaining + capex.AccretionOfMineClosureLiability,
-		GoldCredit:          goldCredit,
-		HasData:             production.HasData && costs.HasData,
+		CashCostPerOzSilver:    cashCostPerOzSilver,
+		AISCPerOzSilver:        aiscPerOzSilver,
+		CashCostsSilver:        cashCostsSilver,
+		AISCSilver:             aiscSilver,
+		GoldCredit:             goldCredit,
+		SustainingCapitalPerOz: sustainingCapitalPerOz,
+		HasData:                production.HasData && costs.HasData,
 	}
 }
 
@@ -354,10 +387,15 @@ func (c *Calculator) CalculateVarianceData(actual, budget *DataSet) *VarianceDat
 			Streaming:               VarianceMetric{Actual: actual.NSR.Streaming, Budget: budget.NSR.Streaming, Variance: actual.NSR.Streaming - budget.NSR.Streaming, VariancePct: calculateVariancePct(actual.NSR.Streaming, budget.NSR.Streaming)},
 			PBRRevenue:              VarianceMetric{Actual: actual.NSR.PBRRevenue, Budget: budget.NSR.PBRRevenue, Variance: actual.NSR.PBRRevenue - budget.NSR.PBRRevenue, VariancePct: calculateVariancePct(actual.NSR.PBRRevenue, budget.NSR.PBRRevenue)},
 			ShippingSelling:         VarianceMetric{Actual: actual.NSR.ShippingSelling, Budget: budget.NSR.ShippingSelling, Variance: actual.NSR.ShippingSelling - budget.NSR.ShippingSelling, VariancePct: calculateVariancePct(actual.NSR.ShippingSelling, budget.NSR.ShippingSelling)},
+			SalesTaxes:              VarianceMetric{Actual: actual.NSR.SalesTaxes, Budget: budget.NSR.SalesTaxes, Variance: actual.NSR.SalesTaxes - budget.NSR.SalesTaxes, VariancePct: calculateVariancePct(actual.NSR.SalesTaxes, budget.NSR.SalesTaxes)},
+			Royalties:               VarianceMetric{Actual: actual.NSR.Royalties, Budget: budget.NSR.Royalties, Variance: actual.NSR.Royalties - budget.NSR.Royalties, VariancePct: calculateVariancePct(actual.NSR.Royalties, budget.NSR.Royalties)},
 			SalesTaxesRoyalties:     VarianceMetric{Actual: actual.NSR.SalesTaxesRoyalties, Budget: budget.NSR.SalesTaxesRoyalties, Variance: actual.NSR.SalesTaxesRoyalties - budget.NSR.SalesTaxesRoyalties, VariancePct: calculateVariancePct(actual.NSR.SalesTaxesRoyalties, budget.NSR.SalesTaxesRoyalties)},
+			OtherSalesDeductions:    VarianceMetric{Actual: actual.NSR.OtherSalesDeductions, Budget: budget.NSR.OtherSalesDeductions, Variance: actual.NSR.OtherSalesDeductions - budget.NSR.OtherSalesDeductions, VariancePct: calculateVariancePct(actual.NSR.OtherSalesDeductions, budget.NSR.OtherSalesDeductions)},
 			SmeltingRefiningCharges: VarianceMetric{Actual: actual.NSR.SmeltingRefiningCharges, Budget: budget.NSR.SmeltingRefiningCharges, Variance: actual.NSR.SmeltingRefiningCharges - budget.NSR.SmeltingRefiningCharges, VariancePct: calculateVariancePct(actual.NSR.SmeltingRefiningCharges, budget.NSR.SmeltingRefiningCharges)},
 			NetSmelterReturn:        VarianceMetric{Actual: actual.NSR.NetSmelterReturn, Budget: budget.NSR.NetSmelterReturn, Variance: actual.NSR.NetSmelterReturn - budget.NSR.NetSmelterReturn, VariancePct: calculateVariancePct(actual.NSR.NetSmelterReturn, budget.NSR.NetSmelterReturn)},
 			GoldCredit:              VarianceMetric{Actual: actual.NSR.GoldCredit, Budget: budget.NSR.GoldCredit, Variance: actual.NSR.GoldCredit - budget.NSR.GoldCredit, VariancePct: calculateVariancePct(actual.NSR.GoldCredit, budget.NSR.GoldCredit)},
+			SilverPricePerOz:        VarianceMetric{Actual: actual.NSR.SilverPricePerOz, Budget: budget.NSR.SilverPricePerOz, Variance: actual.NSR.SilverPricePerOz - budget.NSR.SilverPricePerOz, VariancePct: calculateVariancePct(actual.NSR.SilverPricePerOz, budget.NSR.SilverPricePerOz)},
+			GoldPricePerOz:          VarianceMetric{Actual: actual.NSR.GoldPricePerOz, Budget: budget.NSR.GoldPricePerOz, Variance: actual.NSR.GoldPricePerOz - budget.NSR.GoldPricePerOz, VariancePct: calculateVariancePct(actual.NSR.GoldPricePerOz, budget.NSR.GoldPricePerOz)},
 			NSRPerTonne:             VarianceMetric{Actual: actual.NSR.NSRPerTonne, Budget: budget.NSR.NSRPerTonne, Variance: actual.NSR.NSRPerTonne - budget.NSR.NSRPerTonne, VariancePct: calculateVariancePct(actual.NSR.NSRPerTonne, budget.NSR.NSRPerTonne)},
 			TotalCostPerTonne:       VarianceMetric{Actual: actual.NSR.TotalCostPerTonne, Budget: budget.NSR.TotalCostPerTonne, Variance: actual.NSR.TotalCostPerTonne - budget.NSR.TotalCostPerTonne, VariancePct: calculateVariancePct(actual.NSR.TotalCostPerTonne, budget.NSR.TotalCostPerTonne)},
 			MarginPerTonne:          VarianceMetric{Actual: actual.NSR.MarginPerTonne, Budget: budget.NSR.MarginPerTonne, Variance: actual.NSR.MarginPerTonne - budget.NSR.MarginPerTonne, VariancePct: calculateVariancePct(actual.NSR.MarginPerTonne, budget.NSR.MarginPerTonne)},
@@ -372,18 +410,20 @@ func (c *Calculator) CalculateVarianceData(actual, budget *DataSet) *VarianceDat
 			PBRNetCashFlow:                 VarianceMetric{Actual: actual.CAPEX.PBRNetCashFlow, Budget: budget.CAPEX.PBRNetCashFlow, Variance: actual.CAPEX.PBRNetCashFlow - budget.CAPEX.PBRNetCashFlow, VariancePct: calculateVariancePct(actual.CAPEX.PBRNetCashFlow, budget.CAPEX.PBRNetCashFlow)},
 		},
 		CashCost: CashCostVariance{
-			CashCostPerOzSilver: VarianceMetric{Actual: actual.CashCost.CashCostPerOzSilver, Budget: budget.CashCost.CashCostPerOzSilver, Variance: actual.CashCost.CashCostPerOzSilver - budget.CashCost.CashCostPerOzSilver, VariancePct: calculateVariancePct(actual.CashCost.CashCostPerOzSilver, budget.CashCost.CashCostPerOzSilver)},
-			AISCPerOzSilver:     VarianceMetric{Actual: actual.CashCost.AISCPerOzSilver, Budget: budget.CashCost.AISCPerOzSilver, Variance: actual.CashCost.AISCPerOzSilver - budget.CashCost.AISCPerOzSilver, VariancePct: calculateVariancePct(actual.CashCost.AISCPerOzSilver, budget.CashCost.AISCPerOzSilver)},
-			CashCostsSilver:     VarianceMetric{Actual: actual.CashCost.CashCostsSilver, Budget: budget.CashCost.CashCostsSilver, Variance: actual.CashCost.CashCostsSilver - budget.CashCost.CashCostsSilver, VariancePct: calculateVariancePct(actual.CashCost.CashCostsSilver, budget.CashCost.CashCostsSilver)},
-			AISCSilver:          VarianceMetric{Actual: actual.CashCost.AISCSilver, Budget: budget.CashCost.AISCSilver, Variance: actual.CashCost.AISCSilver - budget.CashCost.AISCSilver, VariancePct: calculateVariancePct(actual.CashCost.AISCSilver, budget.CashCost.AISCSilver)},
-			GoldCredit:          VarianceMetric{Actual: actual.CashCost.GoldCredit, Budget: budget.CashCost.GoldCredit, Variance: actual.CashCost.GoldCredit - budget.CashCost.GoldCredit, VariancePct: calculateVariancePct(actual.CashCost.GoldCredit, budget.CashCost.GoldCredit)},
+			CashCostPerOzSilver:    VarianceMetric{Actual: actual.CashCost.CashCostPerOzSilver, Budget: budget.CashCost.CashCostPerOzSilver, Variance: actual.CashCost.CashCostPerOzSilver - budget.CashCost.CashCostPerOzSilver, VariancePct: calculateVariancePct(actual.CashCost.CashCostPerOzSilver, budget.CashCost.CashCostPerOzSilver)},
+			AISCPerOzSilver:        VarianceMetric{Actual: actual.CashCost.AISCPerOzSilver, Budget: budget.CashCost.AISCPerOzSilver, Variance: actual.CashCost.AISCPerOzSilver - budget.CashCost.AISCPerOzSilver, VariancePct: calculateVariancePct(actual.CashCost.AISCPerOzSilver, budget.CashCost.AISCPerOzSilver)},
+			CashCostsSilver:        VarianceMetric{Actual: actual.CashCost.CashCostsSilver, Budget: budget.CashCost.CashCostsSilver, Variance: actual.CashCost.CashCostsSilver - budget.CashCost.CashCostsSilver, VariancePct: calculateVariancePct(actual.CashCost.CashCostsSilver, budget.CashCost.CashCostsSilver)},
+			AISCSilver:             VarianceMetric{Actual: actual.CashCost.AISCSilver, Budget: budget.CashCost.AISCSilver, Variance: actual.CashCost.AISCSilver - budget.CashCost.AISCSilver, VariancePct: calculateVariancePct(actual.CashCost.AISCSilver, budget.CashCost.AISCSilver)},
+			GoldCredit:             VarianceMetric{Actual: actual.CashCost.GoldCredit, Budget: budget.CashCost.GoldCredit, Variance: actual.CashCost.GoldCredit - budget.CashCost.GoldCredit, VariancePct: calculateVariancePct(actual.CashCost.GoldCredit, budget.CashCost.GoldCredit)},
+			SustainingCapitalPerOz: VarianceMetric{Actual: actual.CashCost.SustainingCapitalPerOz, Budget: budget.CashCost.SustainingCapitalPerOz, Variance: actual.CashCost.SustainingCapitalPerOz - budget.CashCost.SustainingCapitalPerOz, VariancePct: calculateVariancePct(actual.CashCost.SustainingCapitalPerOz, budget.CashCost.SustainingCapitalPerOz)},
 		},
 	}
 }
 
 // AccumulateYTD accumulates YTD values by summing current month with previous YTD
 // monthDore is the Dore data for the current month (needed for gold credit calculation)
-func (c *Calculator) AccumulateYTD(ytd *DataSet, month *DataSet, monthDore *data.DoreData) *DataSet {
+// monthFinancial is the Financial data for the current month (needed for cash cost calculation)
+func (c *Calculator) AccumulateYTD(ytd *DataSet, month *DataSet, monthDore *data.DoreData, monthFinancial *data.FinancialData) *DataSet {
 	if month == nil {
 		return ytd
 	}
@@ -539,15 +579,34 @@ func (c *Calculator) AccumulateYTD(ytd *DataSet, month *DataSet, monthDore *data
 		Streaming:               ytd.NSR.Streaming + month.NSR.Streaming,
 		PBRRevenue:              ytd.NSR.PBRRevenue + month.NSR.PBRRevenue,
 		ShippingSelling:         ytd.NSR.ShippingSelling + month.NSR.ShippingSelling,
+		SalesTaxes:              ytd.NSR.SalesTaxes + month.NSR.SalesTaxes,
+		Royalties:               ytd.NSR.Royalties + month.NSR.Royalties,
 		SalesTaxesRoyalties:     ytd.NSR.SalesTaxesRoyalties + month.NSR.SalesTaxesRoyalties,
+		OtherSalesDeductions:    ytd.NSR.OtherSalesDeductions + month.NSR.OtherSalesDeductions,
 		SmeltingRefiningCharges: ytd.NSR.SmeltingRefiningCharges + month.NSR.SmeltingRefiningCharges,
 		NetSmelterReturn:        ytd.NSR.NetSmelterReturn + month.NSR.NetSmelterReturn,
 		GoldCredit:              ytd.NSR.GoldCredit + month.NSR.GoldCredit,
+		// Metal prices: weighted average by payable oz (not summed)
+		SilverPricePerOz: 0,
+		GoldPricePerOz:   0,
 		// Per tonne metrics: recalculate from accumulated totals (handle division by zero)
 		NSRPerTonne:       0,
 		TotalCostPerTonne: 0,
 		MarginPerTonne:    0,
 		HasData:           ytd.NSR.HasData || month.NSR.HasData,
+	}
+	// Metal prices YTD: weighted average by payable silver/gold oz
+	totalPayableSilverOz := accumulated.Production.PayableSilverOz
+	totalPayableGoldOz := accumulated.Production.PayableGoldOz
+	if totalPayableSilverOz > 0 {
+		prevSilverWeight := ytd.Production.PayableSilverOz * ytd.NSR.SilverPricePerOz
+		currSilverWeight := month.Production.PayableSilverOz * month.NSR.SilverPricePerOz
+		accumulated.NSR.SilverPricePerOz = (prevSilverWeight + currSilverWeight) / totalPayableSilverOz
+	}
+	if totalPayableGoldOz > 0 {
+		prevGoldWeight := ytd.Production.PayableGoldOz * ytd.NSR.GoldPricePerOz
+		currGoldWeight := month.Production.PayableGoldOz * month.NSR.GoldPricePerOz
+		accumulated.NSR.GoldPricePerOz = (prevGoldWeight + currGoldWeight) / totalPayableGoldOz
 	}
 	if accumulated.Processing.TotalTonnesProcessed > 0 {
 		accumulated.NSR.NSRPerTonne = accumulated.NSR.NetSmelterReturn / accumulated.Processing.TotalTonnesProcessed
@@ -567,8 +626,8 @@ func (c *Calculator) AccumulateYTD(ytd *DataSet, month *DataSet, monthDore *data
 		HasData:                          ytd.CAPEX.HasData || month.CAPEX.HasData,
 	}
 
-	// Cash Cost: recalculate from accumulated totals
-	// GoldCredit_YTD = sum(PayableGoldOz_m * RealizedPriceGold_m) for all months
+	// Cash Cost: recalculate from accumulated totals using CORRECTED formula
+	// CashCost = ProdCosts + Shipping + Smelting + SalesTaxes + Royalties + OtherDeductions - GoldCredit
 	if accumulated.Production.HasData && accumulated.Costs.HasData {
 		// Calculate gold credit for current month
 		var monthGoldCredit float64
@@ -584,32 +643,32 @@ func (c *Calculator) AccumulateYTD(ytd *DataSet, month *DataSet, monthDore *data
 			goldCreditYTD = monthGoldCredit
 		}
 		
-		// Cash costs for silver (production costs - gold credit)
-		cashCostsSilverYTD := accumulated.Costs.ProductionBasedCosts - goldCreditYTD
+		// CORRECTED Cash Cost formula: includes shipping, smelting, taxes, royalties, other deductions
+		cashCostsSilverYTD := accumulated.Costs.ProductionBasedCosts +
+			accumulated.NSR.ShippingSelling +
+			accumulated.NSR.SmeltingRefiningCharges +
+			accumulated.NSR.SalesTaxes +
+			accumulated.NSR.Royalties +
+			accumulated.NSR.OtherSalesDeductions -
+			goldCreditYTD
 		
-		var cashCostPerOzSilver, aiscPerOzSilver float64
+		aiscSilverYTD := cashCostsSilverYTD + accumulated.CAPEX.Sustaining + accumulated.CAPEX.AccretionOfMineClosureLiability
+		
+		var cashCostPerOzSilver, aiscPerOzSilver, sustainingCapitalPerOz float64
 		if accumulated.Production.PayableSilverOz > 0 {
 			cashCostPerOzSilver = cashCostsSilverYTD / accumulated.Production.PayableSilverOz
-			aiscSilverYTD := cashCostsSilverYTD + accumulated.CAPEX.Sustaining + accumulated.CAPEX.AccretionOfMineClosureLiability
 			aiscPerOzSilver = aiscSilverYTD / accumulated.Production.PayableSilverOz
-			
-			accumulated.CashCost = CashCostMetrics{
-				CashCostPerOzSilver: cashCostPerOzSilver,
-				AISCPerOzSilver:     aiscPerOzSilver,
-				CashCostsSilver:     cashCostsSilverYTD,
-				AISCSilver:          aiscSilverYTD,
-				GoldCredit:          goldCreditYTD,
-				HasData:             true,
-			}
-		} else {
-			accumulated.CashCost = CashCostMetrics{
-				CashCostPerOzSilver: 0,
-				AISCPerOzSilver:     0,
-				CashCostsSilver:      cashCostsSilverYTD,
-				AISCSilver:           cashCostsSilverYTD + accumulated.CAPEX.Sustaining + accumulated.CAPEX.AccretionOfMineClosureLiability,
-				GoldCredit:           goldCreditYTD,
-				HasData:             true,
-			}
+			sustainingCapitalPerOz = accumulated.CAPEX.Sustaining / accumulated.Production.PayableSilverOz
+		}
+		
+		accumulated.CashCost = CashCostMetrics{
+			CashCostPerOzSilver:    cashCostPerOzSilver,
+			AISCPerOzSilver:        aiscPerOzSilver,
+			CashCostsSilver:        cashCostsSilverYTD,
+			AISCSilver:             aiscSilverYTD,
+			GoldCredit:             goldCreditYTD,
+			SustainingCapitalPerOz: sustainingCapitalPerOz,
+			HasData:                true,
 		}
 	}
 

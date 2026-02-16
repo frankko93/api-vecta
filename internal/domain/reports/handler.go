@@ -56,6 +56,7 @@ func RegisterHTTPEndPoints(router *chi.Mux, validator *validator.Validate, uc Us
 // @Produce json
 // @Param company_id query integer true "Company ID"
 // @Param year query integer true "Year"
+// @Param budget_version query integer true "Budget version to compare against"
 // @Param months query string false "Comma-separated months (1-12)" example:"1,2,3"
 // @Success 200 {object} SummaryReport
 // @Failure 400 {object} respond.Error
@@ -79,13 +80,22 @@ func (h *Handler) GetSummary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Parse budget_version (required)
+	budgetVersionStr := r.URL.Query().Get("budget_version")
+	budgetVersion, err := strconv.Atoi(budgetVersionStr)
+	if err != nil || budgetVersion < 1 {
+		respond.Error(w, http.StatusBadRequest, errors.New("invalid or missing budget_version (must be >= 1)"))
+		return
+	}
+
 	// Parse months (optional - if empty, returns all 12 months)
 	months := r.URL.Query().Get("months")
 
 	req := &SummaryRequest{
-		CompanyID: companyID,
-		Year:      year,
-		Months:    months,
+		CompanyID:     companyID,
+		Year:          year,
+		Months:        months,
+		BudgetVersion: budgetVersion,
 	}
 
 	if err := h.validator.Struct(req); err != nil {

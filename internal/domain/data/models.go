@@ -150,19 +150,26 @@ type RevenueData struct {
 	CreatedAt    time.Time  `db:"created_at" json:"created_at"`
 }
 
-// FinancialData represents financial adjustments (shipping, taxes, royalties)
+// FinancialData represents financial adjustments (shipping, taxes, royalties, deductions)
 type FinancialData struct {
-	ID                  int64      `db:"id" json:"id"`
-	CompanyID           int64      `db:"company_id" json:"company_id"`
-	Date                time.Time  `db:"date" json:"date"`
-	ShippingSelling     float64    `db:"shipping_selling" json:"shipping_selling"`
-	SalesTaxesRoyalties float64    `db:"sales_taxes_royalties" json:"sales_taxes_royalties"`
-	OtherAdjustments    float64    `db:"other_adjustments" json:"other_adjustments"`
-	Currency            string     `db:"currency" json:"currency"`
-	DataType            string     `db:"data_type" json:"data_type"`
-	Version             int        `db:"version" json:"version"`
-	Description         string     `db:"description" json:"description,omitempty"`
-	DeletedAt           *time.Time `db:"deleted_at" json:"deleted_at,omitempty"`
-	CreatedBy           int64      `db:"created_by" json:"created_by"`
-	CreatedAt           time.Time  `db:"created_at" json:"created_at"`
+	ID                   int64      `db:"id" json:"id"`
+	CompanyID            int64      `db:"company_id" json:"company_id"`
+	Date                 time.Time  `db:"date" json:"date"`
+	ShippingSelling      float64    `db:"shipping_selling" json:"shipping_selling"`
+	SalesTaxes           float64    `db:"sales_taxes" json:"sales_taxes"`
+	Royalties            float64    `db:"royalties" json:"royalties"`
+	OtherSalesDeductions float64    `db:"other_sales_deductions" json:"other_sales_deductions"`
+	OtherAdjustments     float64    `db:"other_adjustments" json:"other_adjustments"`
+	Currency             string     `db:"currency" json:"currency"`
+	DataType             string     `db:"data_type" json:"data_type"`
+	Version              int        `db:"version" json:"version"`
+	Description          string     `db:"description" json:"description,omitempty"`
+	DeletedAt            *time.Time `db:"deleted_at" json:"deleted_at,omitempty"`
+	CreatedBy            int64      `db:"created_by" json:"created_by"`
+	CreatedAt            time.Time  `db:"created_at" json:"created_at"`
+}
+
+// SalesTaxesRoyalties returns the combined sales taxes + royalties (backward compatibility)
+func (f *FinancialData) SalesTaxesRoyalties() float64 {
+	return f.SalesTaxes + f.Royalties
 }

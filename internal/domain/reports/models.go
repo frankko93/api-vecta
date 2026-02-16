@@ -126,13 +126,18 @@ type CostMetrics struct {
 // NSRMetrics represents Net Smelter Return metrics
 type NSRMetrics struct {
 	NSRDore                 float64 `json:"nsr_dore"`
-	Streaming               float64 `json:"streaming"`                 // Streaming agreement value (usually negative)
-	PBRRevenue              float64 `json:"pbr_revenue"`               // NSR Dore + Streaming
+	Streaming               float64 `json:"streaming"`                  // Streaming agreement value (usually negative)
+	PBRRevenue              float64 `json:"pbr_revenue"`                // NSR Dore + Streaming
 	ShippingSelling         float64 `json:"shipping_selling"`
-	SalesTaxesRoyalties     float64 `json:"sales_taxes_royalties"`
-	SmeltingRefiningCharges float64 `json:"smelting_refining_charges"` // Treatment + Refining charges separated
+	SalesTaxes              float64 `json:"sales_taxes"`                // Sales taxes (split from combined)
+	Royalties               float64 `json:"royalties"`                  // Royalties (split from combined)
+	SalesTaxesRoyalties     float64 `json:"sales_taxes_royalties"`      // Calculated: SalesTaxes + Royalties
+	OtherSalesDeductions    float64 `json:"other_sales_deductions"`     // Other sales deductions
+	SmeltingRefiningCharges float64 `json:"smelting_refining_charges"`  // Treatment + Refining charges
 	NetSmelterReturn        float64 `json:"net_smelter_return"`
-	GoldCredit              float64 `json:"gold_credit"`               // Gold by-product credit (negative)
+	GoldCredit              float64 `json:"gold_credit"`                // Gold by-product credit (negative)
+	SilverPricePerOz        float64 `json:"silver_price_per_oz"`        // Realized silver price $/oz
+	GoldPricePerOz          float64 `json:"gold_price_per_oz"`          // Realized gold price $/oz
 	NSRPerTonne             float64 `json:"nsr_per_tonne"`
 	TotalCostPerTonne       float64 `json:"total_cost_per_tonne"`
 	MarginPerTonne          float64 `json:"margin_per_tonne"`
@@ -153,12 +158,13 @@ type CAPEXMetrics struct {
 
 // CashCostMetrics represents cash cost and AISC metrics
 type CashCostMetrics struct {
-	CashCostPerOzSilver float64 `json:"cash_cost_per_oz_silver"`
-	AISCPerOzSilver     float64 `json:"aisc_per_oz_silver"`
-	CashCostsSilver     float64 `json:"cash_costs_silver"` // Total cash costs before dividing by ounces
-	AISCSilver          float64 `json:"aisc_silver"`       // Total AISC before dividing by ounces
-	GoldCredit          float64 `json:"gold_credit"`
-	HasData             bool    `json:"has_data"`
+	CashCostPerOzSilver    float64 `json:"cash_cost_per_oz_silver"`
+	AISCPerOzSilver        float64 `json:"aisc_per_oz_silver"`
+	CashCostsSilver        float64 `json:"cash_costs_silver"`         // Total cash costs before dividing by ounces
+	AISCSilver             float64 `json:"aisc_silver"`               // Total AISC before dividing by ounces
+	GoldCredit             float64 `json:"gold_credit"`
+	SustainingCapitalPerOz float64 `json:"sustaining_capital_per_oz"` // Sustaining CAPEX / payable silver oz
+	HasData                bool    `json:"has_data"`
 }
 
 // ComparisonData for YTD comparisons
@@ -241,10 +247,15 @@ type NSRVariance struct {
 	Streaming               VarianceMetric `json:"streaming"`
 	PBRRevenue              VarianceMetric `json:"pbr_revenue"`
 	ShippingSelling         VarianceMetric `json:"shipping_selling"`
+	SalesTaxes              VarianceMetric `json:"sales_taxes"`
+	Royalties               VarianceMetric `json:"royalties"`
 	SalesTaxesRoyalties     VarianceMetric `json:"sales_taxes_royalties"`
+	OtherSalesDeductions    VarianceMetric `json:"other_sales_deductions"`
 	SmeltingRefiningCharges VarianceMetric `json:"smelting_refining_charges"`
 	NetSmelterReturn        VarianceMetric `json:"net_smelter_return"`
 	GoldCredit              VarianceMetric `json:"gold_credit"`
+	SilverPricePerOz        VarianceMetric `json:"silver_price_per_oz"`
+	GoldPricePerOz          VarianceMetric `json:"gold_price_per_oz"`
 	NSRPerTonne             VarianceMetric `json:"nsr_per_tonne"`
 	TotalCostPerTonne       VarianceMetric `json:"total_cost_per_tonne"`
 	MarginPerTonne          VarianceMetric `json:"margin_per_tonne"`
@@ -261,11 +272,12 @@ type CAPEXVariance struct {
 }
 
 type CashCostVariance struct {
-	CashCostPerOzSilver VarianceMetric `json:"cash_cost_per_oz_silver"`
-	AISCPerOzSilver     VarianceMetric `json:"aisc_per_oz_silver"`
-	CashCostsSilver     VarianceMetric `json:"cash_costs_silver"`
-	AISCSilver          VarianceMetric `json:"aisc_silver"`
-	GoldCredit          VarianceMetric `json:"gold_credit"`
+	CashCostPerOzSilver    VarianceMetric `json:"cash_cost_per_oz_silver"`
+	AISCPerOzSilver        VarianceMetric `json:"aisc_per_oz_silver"`
+	CashCostsSilver        VarianceMetric `json:"cash_costs_silver"`
+	AISCSilver             VarianceMetric `json:"aisc_silver"`
+	GoldCredit             VarianceMetric `json:"gold_credit"`
+	SustainingCapitalPerOz VarianceMetric `json:"sustaining_capital_per_oz"`
 }
 
 // VarianceMetric represents variance calculation for a single metric
