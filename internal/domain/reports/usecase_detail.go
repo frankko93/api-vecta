@@ -23,9 +23,10 @@ type DetailUseCase interface {
 
 // DetailRequest represents a request for detailed report
 type DetailRequest struct {
-	CompanyID int64  `form:"company_id" validate:"required,gt=0"`
-	Year      int    `form:"year" validate:"required,gt=2000"`
-	Months    string `form:"months"` // Optional: "1,2,3" or empty for all months
+	CompanyID     int64  `form:"company_id" validate:"required,gt=0"`
+	Year          int    `form:"year" validate:"required,gt=2000"`
+	Months        string `form:"months"`                                  // Optional: "1,2,3" or empty for all months
+	BudgetVersion int    `form:"budget_version" validate:"required,gte=1"` // Required: budget data version to compare against
 }
 
 type detailUseCase struct {
@@ -52,12 +53,12 @@ func (uc *detailUseCase) GetPBRDetail(ctx context.Context, req *DetailRequest) (
 		return nil, err
 	}
 
-	pbrActual, err := uc.repo.GetPBRData(ctx, req.CompanyID, req.Year, "actual")
+	pbrActual, err := uc.repo.GetPBRData(ctx, req.CompanyID, req.Year, "actual", 1)
 	if err != nil {
 		return nil, err
 	}
 
-	pbrBudget, err := uc.repo.GetPBRData(ctx, req.CompanyID, req.Year, "budget")
+	pbrBudget, err := uc.repo.GetPBRData(ctx, req.CompanyID, req.Year, "budget", req.BudgetVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -86,22 +87,22 @@ func (uc *detailUseCase) GetDoreDetail(ctx context.Context, req *DetailRequest) 
 		return nil, err
 	}
 
-	doreActual, err := uc.repo.GetDoreData(ctx, req.CompanyID, req.Year, "actual")
+	doreActual, err := uc.repo.GetDoreData(ctx, req.CompanyID, req.Year, "actual", 1)
 	if err != nil {
 		return nil, err
 	}
 
-	doreBudget, err := uc.repo.GetDoreData(ctx, req.CompanyID, req.Year, "budget")
+	doreBudget, err := uc.repo.GetDoreData(ctx, req.CompanyID, req.Year, "budget", req.BudgetVersion)
 	if err != nil {
 		return nil, err
 	}
 
-	pbrActual, err := uc.repo.GetPBRData(ctx, req.CompanyID, req.Year, "actual")
+	pbrActual, err := uc.repo.GetPBRData(ctx, req.CompanyID, req.Year, "actual", 1)
 	if err != nil {
 		return nil, err
 	}
 
-	pbrBudget, err := uc.repo.GetPBRData(ctx, req.CompanyID, req.Year, "budget")
+	pbrBudget, err := uc.repo.GetPBRData(ctx, req.CompanyID, req.Year, "budget", req.BudgetVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -130,12 +131,12 @@ func (uc *detailUseCase) GetOPEXDetail(ctx context.Context, req *DetailRequest) 
 		return nil, err
 	}
 
-	opexActual, err := uc.repo.GetOPEXData(ctx, req.CompanyID, req.Year, "actual")
+	opexActual, err := uc.repo.GetOPEXData(ctx, req.CompanyID, req.Year, "actual", 1)
 	if err != nil {
 		return nil, err
 	}
 
-	opexBudget, err := uc.repo.GetOPEXData(ctx, req.CompanyID, req.Year, "budget")
+	opexBudget, err := uc.repo.GetOPEXData(ctx, req.CompanyID, req.Year, "budget", req.BudgetVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -167,12 +168,12 @@ func (uc *detailUseCase) GetCAPEXDetail(ctx context.Context, req *DetailRequest)
 		return nil, err
 	}
 
-	capexActual, err := uc.repo.GetCAPEXData(ctx, req.CompanyID, req.Year, "actual")
+	capexActual, err := uc.repo.GetCAPEXData(ctx, req.CompanyID, req.Year, "actual", 1)
 	if err != nil {
 		return nil, err
 	}
 
-	capexBudget, err := uc.repo.GetCAPEXData(ctx, req.CompanyID, req.Year, "budget")
+	capexBudget, err := uc.repo.GetCAPEXData(ctx, req.CompanyID, req.Year, "budget", req.BudgetVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -919,23 +920,30 @@ func (uc *detailUseCase) buildFinancialDetail(financial *data.FinancialData) *Fi
 		return nil
 	}
 
-	total := financial.ShippingSelling + financial.SalesTaxesRoyalties + financial.OtherAdjustments
+	salesTaxesRoyalties := financial.SalesTaxes + financial.Royalties
+	total := financial.ShippingSelling + salesTaxesRoyalties + financial.OtherSalesDeductions + financial.OtherAdjustments
 
 	return &FinancialDetail{
-		ShippingSelling:     financial.ShippingSelling,
-		SalesTaxesRoyalties: financial.SalesTaxesRoyalties,
-		OtherAdjustments:    financial.OtherAdjustments,
-		Total:               total,
-		HasData:             true,
+		ShippingSelling:      financial.ShippingSelling,
+		SalesTaxes:           financial.SalesTaxes,
+		Royalties:            financial.Royalties,
+		SalesTaxesRoyalties:  salesTaxesRoyalties,
+		OtherSalesDeductions: financial.OtherSalesDeductions,
+		OtherAdjustments:     financial.OtherAdjustments,
+		Total:                total,
+		HasData:              true,
 	}
 }
 
 func (uc *detailUseCase) calculateFinancialVariance(actual, budget *FinancialDetail) *FinancialVariance {
 	return &FinancialVariance{
-		ShippingSelling:     VarianceMetric{Actual: actual.ShippingSelling, Budget: budget.ShippingSelling, Variance: actual.ShippingSelling - budget.ShippingSelling, VariancePct: calculateVariancePct(actual.ShippingSelling, budget.ShippingSelling)},
-		SalesTaxesRoyalties: VarianceMetric{Actual: actual.SalesTaxesRoyalties, Budget: budget.SalesTaxesRoyalties, Variance: actual.SalesTaxesRoyalties - budget.SalesTaxesRoyalties, VariancePct: calculateVariancePct(actual.SalesTaxesRoyalties, budget.SalesTaxesRoyalties)},
-		OtherAdjustments:    VarianceMetric{Actual: actual.OtherAdjustments, Budget: budget.OtherAdjustments, Variance: actual.OtherAdjustments - budget.OtherAdjustments, VariancePct: calculateVariancePct(actual.OtherAdjustments, budget.OtherAdjustments)},
-		Total:               VarianceMetric{Actual: actual.Total, Budget: budget.Total, Variance: actual.Total - budget.Total, VariancePct: calculateVariancePct(actual.Total, budget.Total)},
+		ShippingSelling:      VarianceMetric{Actual: actual.ShippingSelling, Budget: budget.ShippingSelling, Variance: actual.ShippingSelling - budget.ShippingSelling, VariancePct: calculateVariancePct(actual.ShippingSelling, budget.ShippingSelling)},
+		SalesTaxes:           VarianceMetric{Actual: actual.SalesTaxes, Budget: budget.SalesTaxes, Variance: actual.SalesTaxes - budget.SalesTaxes, VariancePct: calculateVariancePct(actual.SalesTaxes, budget.SalesTaxes)},
+		Royalties:            VarianceMetric{Actual: actual.Royalties, Budget: budget.Royalties, Variance: actual.Royalties - budget.Royalties, VariancePct: calculateVariancePct(actual.Royalties, budget.Royalties)},
+		SalesTaxesRoyalties:  VarianceMetric{Actual: actual.SalesTaxesRoyalties, Budget: budget.SalesTaxesRoyalties, Variance: actual.SalesTaxesRoyalties - budget.SalesTaxesRoyalties, VariancePct: calculateVariancePct(actual.SalesTaxesRoyalties, budget.SalesTaxesRoyalties)},
+		OtherSalesDeductions: VarianceMetric{Actual: actual.OtherSalesDeductions, Budget: budget.OtherSalesDeductions, Variance: actual.OtherSalesDeductions - budget.OtherSalesDeductions, VariancePct: calculateVariancePct(actual.OtherSalesDeductions, budget.OtherSalesDeductions)},
+		OtherAdjustments:     VarianceMetric{Actual: actual.OtherAdjustments, Budget: budget.OtherAdjustments, Variance: actual.OtherAdjustments - budget.OtherAdjustments, VariancePct: calculateVariancePct(actual.OtherAdjustments, budget.OtherAdjustments)},
+		Total:                VarianceMetric{Actual: actual.Total, Budget: budget.Total, Variance: actual.Total - budget.Total, VariancePct: calculateVariancePct(actual.Total, budget.Total)},
 	}
 }
 

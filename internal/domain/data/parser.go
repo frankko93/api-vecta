@@ -612,12 +612,23 @@ func parseRevenueCSV(fileContent []byte, companyID, userID int64, dataType strin
 	return records, errors
 }
 
-var financialHeaders = []string{"date", "shipping_selling", "sales_taxes_royalties", "other_adjustments"}
+// New format: split sales_taxes and royalties, plus other_sales_deductions
+var financialHeaders = []string{"date", "shipping_selling", "sales_taxes", "royalties", "other_sales_deductions", "other_adjustments"}
+
+// Legacy format: combined sales_taxes_royalties (backward compatibility)
+var financialHeadersLegacy = []string{"date", "shipping_selling", "sales_taxes_royalties", "other_adjustments"}
 
 func parseFinancialCSV(fileContent []byte, companyID, userID int64, dataType string, version int, description string) ([]*FinancialData, []ValidationError) {
+	// Try new format first, fall back to legacy format
 	rows, err := readCSV(fileContent, financialHeaders)
+	useLegacy := false
 	if err != nil {
-		return nil, []ValidationError{{Row: 0, Error: err.Error()}}
+		// Try legacy format with combined sales_taxes_royalties
+		rows, err = readCSV(fileContent, financialHeadersLegacy)
+		if err != nil {
+			return nil, []ValidationError{{Row: 0, Error: err.Error()}}
+		}
+		useLegacy = true
 	}
 
 	var records []*FinancialData
@@ -626,9 +637,16 @@ func parseFinancialCSV(fileContent []byte, companyID, userID int64, dataType str
 	for i, row := range rows {
 		rowNum := i + 2
 
-		if err := validateRow(row, len(financialHeaders), rowNum); err != nil {
-			errors = append(errors, ValidationError{Row: rowNum, Error: err.Error()})
-			continue
+		if useLegacy {
+			if err := validateRow(row, len(financialHeadersLegacy), rowNum); err != nil {
+				errors = append(errors, ValidationError{Row: rowNum, Error: err.Error()})
+				continue
+			}
+		} else {
+			if err := validateRow(row, len(financialHeaders), rowNum); err != nil {
+				errors = append(errors, ValidationError{Row: rowNum, Error: err.Error()})
+				continue
+			}
 		}
 
 		date, err := parseDate(row[0])
@@ -643,29 +661,64 @@ func parseFinancialCSV(fileContent []byte, companyID, userID int64, dataType str
 			continue
 		}
 
-		salesTaxesRoyalties, err := parseFloat(row[2], true) // Required
-		if err != nil {
-			errors = append(errors, ValidationError{Row: rowNum, Column: "sales_taxes_royalties", Error: err.Error()})
-			continue
-		}
+		var salesTaxes, royalties, otherSalesDeductions, otherAdjustments float64
 
-		otherAdjustments, err := parseFloat(row[3], false) // Optional (not used in calculations)
-		if err != nil {
-			errors = append(errors, ValidationError{Row: rowNum, Column: "other_adjustments", Error: err.Error()})
-			continue
+		if useLegacy {
+			// Legacy format: sales_taxes_royalties (combined) -> map to sales_taxes, royalties=0
+			salesTaxesRoyalties, err := parseFloat(row[2], true) // Required
+			if err != nil {
+				errors = append(errors, ValidationError{Row: rowNum, Column: "sales_taxes_royalties", Error: err.Error()})
+				continue
+			}
+			salesTaxes = salesTaxesRoyalties
+			royalties = 0
+			otherSalesDeductions = 0
+
+			otherAdjustments, err = parseFloat(row[3], false) // Optional
+			if err != nil {
+				errors = append(errors, ValidationError{Row: rowNum, Column: "other_adjustments", Error: err.Error()})
+				continue
+			}
+		} else {
+			// New format: separate fields
+			salesTaxes, err = parseFloat(row[2], true) // Required
+			if err != nil {
+				errors = append(errors, ValidationError{Row: rowNum, Column: "sales_taxes", Error: err.Error()})
+				continue
+			}
+
+			royalties, err = parseFloat(row[3], true) // Required
+			if err != nil {
+				errors = append(errors, ValidationError{Row: rowNum, Column: "royalties", Error: err.Error()})
+				continue
+			}
+
+			otherSalesDeductions, err = parseFloat(row[4], false) // Optional
+			if err != nil {
+				errors = append(errors, ValidationError{Row: rowNum, Column: "other_sales_deductions", Error: err.Error()})
+				continue
+			}
+
+			otherAdjustments, err = parseFloat(row[5], false) // Optional
+			if err != nil {
+				errors = append(errors, ValidationError{Row: rowNum, Column: "other_adjustments", Error: err.Error()})
+				continue
+			}
 		}
 
 		records = append(records, &FinancialData{
-			CompanyID:           companyID,
-			Date:                date,
-			ShippingSelling:     shippingSelling,
-			SalesTaxesRoyalties: salesTaxesRoyalties,
-			OtherAdjustments:    otherAdjustments,
-			Currency:            "USD",
-			DataType:            dataType,
-			Version:             version,
-			Description:         description,
-			CreatedBy:           userID,
+			CompanyID:            companyID,
+			Date:                 date,
+			ShippingSelling:      shippingSelling,
+			SalesTaxes:           salesTaxes,
+			Royalties:            royalties,
+			OtherSalesDeductions: otherSalesDeductions,
+			OtherAdjustments:     otherAdjustments,
+			Currency:             "USD",
+			DataType:             dataType,
+			Version:              version,
+			Description:          description,
+			CreatedBy:            userID,
 		})
 	}
 

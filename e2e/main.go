@@ -234,7 +234,7 @@ func testReportsFlow() {
 	log.Println("→ Testing reports flow...")
 
 	// Get summary (should work even with partial data)
-	resp, err := doRequest(http.MethodGet, "/api/v1/reports/summary?company_id=1&year=2025&months=1", nil, token)
+	resp, err := doRequest(http.MethodGet, "/api/v1/reports/summary?company_id=1&year=2025&budget_version=1&months=1", nil, token)
 	if err != nil {
 		log.Fatalf("Get summary failed: %v", err)
 	}
@@ -311,7 +311,7 @@ func testCompleteWorkflow() {
 	}
 
 	// Get summary and validate calculations
-	summaryResp, _ := doRequest(http.MethodGet, fmt.Sprintf("/api/v1/reports/summary?company_id=%d&year=2025&months=1", company.ID), nil, token)
+	summaryResp, _ := doRequest(http.MethodGet, fmt.Sprintf("/api/v1/reports/summary?company_id=%d&year=2025&budget_version=1&months=1", company.ID), nil, token)
 	if summaryResp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(summaryResp.Body)
 		log.Fatalf("Get summary failed: got %v, body: %s", summaryResp.StatusCode, string(body))
@@ -454,8 +454,8 @@ func buildCAPEXCSV() []byte {
 }
 
 func buildFinancialCSV() []byte {
-	return []byte(`date,shipping_selling,sales_taxes_royalties,other_adjustments
-2025-01-15,-202,465867,0`)
+	return []byte(`date,shipping_selling,sales_taxes,royalties,other_sales_deductions,other_adjustments
+2025-01-15,-202,465867,0,0,0`)
 }
 
 func waitForAPI(readinessURL string) {

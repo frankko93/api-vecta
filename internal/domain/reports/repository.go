@@ -20,13 +20,13 @@ var (
 type Repository interface {
 	GetCompanyName(ctx context.Context, companyID int64) (string, error)
 	GetCompanyConfig(ctx context.Context, companyID int64) (*CompanyConfig, error)
-	GetPBRData(ctx context.Context, companyID int64, year int, dataType string) ([]*data.PBRData, error)
-	GetDoreData(ctx context.Context, companyID int64, year int, dataType string) ([]*data.DoreData, error)
-	GetOPEXData(ctx context.Context, companyID int64, year int, dataType string) ([]*data.OPEXData, error)
-	GetCAPEXData(ctx context.Context, companyID int64, year int, dataType string) ([]*data.CAPEXData, error)
-	GetFinancialData(ctx context.Context, companyID int64, year int, dataType string) ([]*data.FinancialData, error)
-	GetProductionData(ctx context.Context, companyID int64, year int, dataType string) ([]*data.ProductionData, error)
-	GetRevenueData(ctx context.Context, companyID int64, year int, dataType string) ([]*data.RevenueData, error)
+	GetPBRData(ctx context.Context, companyID int64, year int, dataType string, version int) ([]*data.PBRData, error)
+	GetDoreData(ctx context.Context, companyID int64, year int, dataType string, version int) ([]*data.DoreData, error)
+	GetOPEXData(ctx context.Context, companyID int64, year int, dataType string, version int) ([]*data.OPEXData, error)
+	GetCAPEXData(ctx context.Context, companyID int64, year int, dataType string, version int) ([]*data.CAPEXData, error)
+	GetFinancialData(ctx context.Context, companyID int64, year int, dataType string, version int) ([]*data.FinancialData, error)
+	GetProductionData(ctx context.Context, companyID int64, year int, dataType string, version int) ([]*data.ProductionData, error)
+	GetRevenueData(ctx context.Context, companyID int64, year int, dataType string, version int) ([]*data.RevenueData, error)
 	GetMineralMap(ctx context.Context) (map[int]struct{ Code, Name string }, error) // mineral_id -> {code, name}
 
 	// Saved reports (for scenario comparison)
@@ -96,7 +96,7 @@ func (r *repository) GetCompanyConfig(ctx context.Context, companyID int64) (*Co
 	return config, nil
 }
 
-func (r *repository) GetPBRData(ctx context.Context, companyID int64, year int, dataType string) ([]*data.PBRData, error) {
+func (r *repository) GetPBRData(ctx context.Context, companyID int64, year int, dataType string, version int) ([]*data.PBRData, error) {
 	var records []*data.PBRData
 
 	startDate := time.Date(year, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -115,15 +115,15 @@ func (r *repository) GetPBRData(ctx context.Context, companyID int64, year int, 
 		       full_time_employees, contractors, total_headcount,
 		       data_type, version, created_by, created_at
 		FROM pbr_data
-		WHERE company_id = $1 AND date >= $2 AND date <= $3 AND data_type = $4 AND deleted_at IS NULL
+		WHERE company_id = $1 AND date >= $2 AND date <= $3 AND data_type = $4 AND version = $5 AND deleted_at IS NULL
 		ORDER BY date
 	`
 
-	err := r.db.SelectContext(ctx, &records, query, companyID, startDate, endDate, dataType)
+	err := r.db.SelectContext(ctx, &records, query, companyID, startDate, endDate, dataType, version)
 	return records, err
 }
 
-func (r *repository) GetDoreData(ctx context.Context, companyID int64, year int, dataType string) ([]*data.DoreData, error) {
+func (r *repository) GetDoreData(ctx context.Context, companyID int64, year int, dataType string, version int) ([]*data.DoreData, error) {
 	var records []*data.DoreData
 
 	startDate := time.Date(year, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -136,15 +136,15 @@ func (r *repository) GetDoreData(ctx context.Context, companyID int64, year int,
 		       treatment_charge, refining_deductions_au, streaming,
 		       data_type, version, created_by, created_at
 		FROM dore_data
-		WHERE company_id = $1 AND date >= $2 AND date <= $3 AND data_type = $4 AND deleted_at IS NULL
+		WHERE company_id = $1 AND date >= $2 AND date <= $3 AND data_type = $4 AND version = $5 AND deleted_at IS NULL
 		ORDER BY date
 	`
 
-	err := r.db.SelectContext(ctx, &records, query, companyID, startDate, endDate, dataType)
+	err := r.db.SelectContext(ctx, &records, query, companyID, startDate, endDate, dataType, version)
 	return records, err
 }
 
-func (r *repository) GetOPEXData(ctx context.Context, companyID int64, year int, dataType string) ([]*data.OPEXData, error) {
+func (r *repository) GetOPEXData(ctx context.Context, companyID int64, year int, dataType string, version int) ([]*data.OPEXData, error) {
 	var records []*data.OPEXData
 
 	startDate := time.Date(year, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -154,15 +154,15 @@ func (r *repository) GetOPEXData(ctx context.Context, companyID int64, year int,
 		SELECT id, company_id, date, cost_center, subcategory, expense_type,
 		       amount, currency, data_type, version, created_by, created_at
 		FROM opex_data
-		WHERE company_id = $1 AND date >= $2 AND date <= $3 AND data_type = $4 AND deleted_at IS NULL
+		WHERE company_id = $1 AND date >= $2 AND date <= $3 AND data_type = $4 AND version = $5 AND deleted_at IS NULL
 		ORDER BY date
 	`
 
-	err := r.db.SelectContext(ctx, &records, query, companyID, startDate, endDate, dataType)
+	err := r.db.SelectContext(ctx, &records, query, companyID, startDate, endDate, dataType, version)
 	return records, err
 }
 
-func (r *repository) GetCAPEXData(ctx context.Context, companyID int64, year int, dataType string) ([]*data.CAPEXData, error) {
+func (r *repository) GetCAPEXData(ctx context.Context, companyID int64, year int, dataType string, version int) ([]*data.CAPEXData, error) {
 	var records []*data.CAPEXData
 
 	startDate := time.Date(year, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -172,33 +172,33 @@ func (r *repository) GetCAPEXData(ctx context.Context, companyID int64, year int
 		SELECT id, company_id, date, category, car_number, project_name, type,
 		       amount, accretion_of_mine_closure_liability, currency, data_type, version, created_by, created_at
 		FROM capex_data
-		WHERE company_id = $1 AND date >= $2 AND date <= $3 AND data_type = $4 AND deleted_at IS NULL
+		WHERE company_id = $1 AND date >= $2 AND date <= $3 AND data_type = $4 AND version = $5 AND deleted_at IS NULL
 		ORDER BY date
 	`
 
-	err := r.db.SelectContext(ctx, &records, query, companyID, startDate, endDate, dataType)
+	err := r.db.SelectContext(ctx, &records, query, companyID, startDate, endDate, dataType, version)
 	return records, err
 }
 
-func (r *repository) GetFinancialData(ctx context.Context, companyID int64, year int, dataType string) ([]*data.FinancialData, error) {
+func (r *repository) GetFinancialData(ctx context.Context, companyID int64, year int, dataType string, version int) ([]*data.FinancialData, error) {
 	var records []*data.FinancialData
 
 	startDate := time.Date(year, 1, 1, 0, 0, 0, 0, time.UTC)
 	endDate := time.Date(year, 12, 31, 23, 59, 59, 0, time.UTC)
 
 	query := `
-		SELECT id, company_id, date, shipping_selling, sales_taxes_royalties,
-		       other_adjustments, currency, data_type, version, created_by, created_at
+		SELECT id, company_id, date, shipping_selling, sales_taxes, royalties,
+		       other_sales_deductions, other_adjustments, currency, data_type, version, created_by, created_at
 		FROM financial_data
-		WHERE company_id = $1 AND date >= $2 AND date <= $3 AND data_type = $4 AND deleted_at IS NULL
+		WHERE company_id = $1 AND date >= $2 AND date <= $3 AND data_type = $4 AND version = $5 AND deleted_at IS NULL
 		ORDER BY date
 	`
 
-	err := r.db.SelectContext(ctx, &records, query, companyID, startDate, endDate, dataType)
+	err := r.db.SelectContext(ctx, &records, query, companyID, startDate, endDate, dataType, version)
 	return records, err
 }
 
-func (r *repository) GetProductionData(ctx context.Context, companyID int64, year int, dataType string) ([]*data.ProductionData, error) {
+func (r *repository) GetProductionData(ctx context.Context, companyID int64, year int, dataType string, version int) ([]*data.ProductionData, error) {
 	var records []*data.ProductionData
 
 	startDate := time.Date(year, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -208,15 +208,15 @@ func (r *repository) GetProductionData(ctx context.Context, companyID int64, yea
 		SELECT id, company_id, date, mineral_id, quantity, unit,
 		       data_type, version, description, created_by, created_at
 		FROM production_data
-		WHERE company_id = $1 AND date >= $2 AND date <= $3 AND data_type = $4 AND deleted_at IS NULL
+		WHERE company_id = $1 AND date >= $2 AND date <= $3 AND data_type = $4 AND version = $5 AND deleted_at IS NULL
 		ORDER BY date
 	`
 
-	err := r.db.SelectContext(ctx, &records, query, companyID, startDate, endDate, dataType)
+	err := r.db.SelectContext(ctx, &records, query, companyID, startDate, endDate, dataType, version)
 	return records, err
 }
 
-func (r *repository) GetRevenueData(ctx context.Context, companyID int64, year int, dataType string) ([]*data.RevenueData, error) {
+func (r *repository) GetRevenueData(ctx context.Context, companyID int64, year int, dataType string, version int) ([]*data.RevenueData, error) {
 	var records []*data.RevenueData
 
 	startDate := time.Date(year, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -226,11 +226,11 @@ func (r *repository) GetRevenueData(ctx context.Context, companyID int64, year i
 		SELECT id, company_id, date, mineral_id, quantity_sold, unit_price,
 		       currency, data_type, version, description, created_by, created_at
 		FROM revenue_data
-		WHERE company_id = $1 AND date >= $2 AND date <= $3 AND data_type = $4 AND deleted_at IS NULL
+		WHERE company_id = $1 AND date >= $2 AND date <= $3 AND data_type = $4 AND version = $5 AND deleted_at IS NULL
 		ORDER BY date
 	`
 
-	err := r.db.SelectContext(ctx, &records, query, companyID, startDate, endDate, dataType)
+	err := r.db.SelectContext(ctx, &records, query, companyID, startDate, endDate, dataType, version)
 	return records, err
 }
 

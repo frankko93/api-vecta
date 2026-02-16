@@ -356,20 +356,26 @@ type FinancialMonthlyData struct {
 
 // FinancialDetail contains detailed Financial metrics
 type FinancialDetail struct {
-	ShippingSelling     float64 `json:"shipping_selling"`
-	SalesTaxesRoyalties float64 `json:"sales_taxes_royalties"`
-	OtherAdjustments    float64 `json:"other_adjustments"`
-	Total               float64 `json:"total"`
+	ShippingSelling      float64 `json:"shipping_selling"`
+	SalesTaxes           float64 `json:"sales_taxes"`
+	Royalties            float64 `json:"royalties"`
+	SalesTaxesRoyalties  float64 `json:"sales_taxes_royalties"` // Calculated: SalesTaxes + Royalties
+	OtherSalesDeductions float64 `json:"other_sales_deductions"`
+	OtherAdjustments     float64 `json:"other_adjustments"`
+	Total                float64 `json:"total"`
 
 	HasData bool `json:"has_data"`
 }
 
 // FinancialVariance contains variance for Financial metrics
 type FinancialVariance struct {
-	ShippingSelling     VarianceMetric `json:"shipping_selling"`
-	SalesTaxesRoyalties VarianceMetric `json:"sales_taxes_royalties"`
-	OtherAdjustments    VarianceMetric `json:"other_adjustments"`
-	Total               VarianceMetric `json:"total"`
+	ShippingSelling      VarianceMetric `json:"shipping_selling"`
+	SalesTaxes           VarianceMetric `json:"sales_taxes"`
+	Royalties            VarianceMetric `json:"royalties"`
+	SalesTaxesRoyalties  VarianceMetric `json:"sales_taxes_royalties"`
+	OtherSalesDeductions VarianceMetric `json:"other_sales_deductions"`
+	OtherAdjustments     VarianceMetric `json:"other_adjustments"`
+	Total                VarianceMetric `json:"total"`
 }
 
 // ProductionDetailReport represents detailed Production report

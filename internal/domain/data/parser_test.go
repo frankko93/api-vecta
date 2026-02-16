@@ -103,7 +103,9 @@ func TestParseFinancialCSV_Success(t *testing.T) {
 	assert.Empty(t, validationErrors)
 	assert.Len(t, records, 1)
 	assert.Equal(t, -202.0, records[0].ShippingSelling)
-	assert.Equal(t, 465867.0, records[0].SalesTaxesRoyalties)
+	assert.Equal(t, 465867.0, records[0].SalesTaxes)
+	assert.Equal(t, 0.0, records[0].Royalties)
+	assert.Equal(t, 0.0, records[0].OtherSalesDeductions)
 	assert.Equal(t, "USD", records[0].Currency)
 }
 

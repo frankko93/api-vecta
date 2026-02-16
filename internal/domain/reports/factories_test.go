@@ -61,14 +61,16 @@ func newTestDoreData() *data.DoreData {
 // newTestFinancialData creates standard financial test data
 func newTestFinancialData() *data.FinancialData {
 	return &data.FinancialData{
-		CompanyID:           testCompanyID,
-		Date:                time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
-		ShippingSelling:     -202,
-		SalesTaxesRoyalties: 465867,
-		OtherAdjustments:    0,
-		Currency:            "USD",
-		DataType:            "actual",
-		CreatedBy:           testUserID,
+		CompanyID:            testCompanyID,
+		Date:                 time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
+		ShippingSelling:      -202,
+		SalesTaxes:           465867,
+		Royalties:            0,
+		OtherSalesDeductions: 0,
+		OtherAdjustments:     0,
+		Currency:             "USD",
+		DataType:             "actual",
+		CreatedBy:            testUserID,
 	}
 }
 

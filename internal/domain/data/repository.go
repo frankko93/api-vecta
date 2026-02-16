@@ -271,14 +271,15 @@ func (r *repository) InsertFinancialBulk(ctx context.Context, records []*Financi
 	defer tx.Rollback()
 
 	query := `
-		INSERT INTO financial_data (company_id, date, shipping_selling, sales_taxes_royalties, other_adjustments, currency, data_type, created_by)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO financial_data (company_id, date, shipping_selling, sales_taxes, royalties, other_sales_deductions, other_adjustments, currency, data_type, created_by)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	`
 
 	for _, record := range records {
 		_, err = tx.ExecContext(ctx, query,
 			record.CompanyID, record.Date, record.ShippingSelling,
-			record.SalesTaxesRoyalties, record.OtherAdjustments,
+			record.SalesTaxes, record.Royalties, record.OtherSalesDeductions,
+			record.OtherAdjustments,
 			record.Currency, record.DataType, record.CreatedBy,
 		)
 		if err != nil {
@@ -501,8 +502,8 @@ func (r *repository) ListFinancialData(ctx context.Context, companyID int64, yea
 	var records []*FinancialData
 
 	query := `
-		SELECT id, company_id, date, shipping_selling, sales_taxes_royalties,
-		       other_adjustments, currency, data_type, version, description, created_by, created_at
+		SELECT id, company_id, date, shipping_selling, sales_taxes, royalties,
+		       other_sales_deductions, other_adjustments, currency, data_type, version, description, created_by, created_at
 		FROM financial_data
 		WHERE company_id = $1 AND EXTRACT(YEAR FROM date) = $2 AND data_type = $3 
 		      AND version = $4 AND deleted_at IS NULL

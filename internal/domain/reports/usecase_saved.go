@@ -9,21 +9,21 @@ import (
 
 // SaveReport saves a generated report as a scenario
 func (uc *useCase) SaveReport(ctx context.Context, req *SaveReportRequest, userID int64) (*SavedReport, error) {
-	// Generate complete report (all 12 months)
+	// Budget version is required
+	if req.BudgetVersion < 1 {
+		return nil, fmt.Errorf("budget_version is required and must be >= 1")
+	}
+
+	// Generate complete report (all 12 months) using the specified budget version
 	summaryReq := &SummaryRequest{
-		CompanyID: req.CompanyID,
-		Year:      req.Year,
- // Empty = all 12 months
+		CompanyID:     req.CompanyID,
+		Year:          req.Year,
+		BudgetVersion: req.BudgetVersion,
 	}
 
 	summary, err := uc.GetSummary(ctx, summaryReq)
 	if err != nil {
 		return nil, err
-	}
-
-	// Default budget version if not specified
-	if req.BudgetVersion == 0 {
-		req.BudgetVersion = 1
 	}
 
 	// Create saved report (with full year data)

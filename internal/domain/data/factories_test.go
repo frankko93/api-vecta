@@ -35,7 +35,7 @@ func buildOPEXCSV(rows []string) []byte {
 }
 
 func buildFinancialCSV(rows []string) []byte {
-	csv := "date,shipping_selling,sales_taxes_royalties,other_adjustments\n"
+	csv := "date,shipping_selling,sales_taxes,royalties,other_sales_deductions,other_adjustments\n"
 	for _, row := range rows {
 		csv += row + "\n"
 	}
@@ -62,5 +62,5 @@ const (
 	validProductionRow = "2024-01-15,AU,150.5,kilograms"
 	validPBRRow        = "2024-01-15,24859,262591,598,35951,209.79,7.35,94.01,95.36"
 	validOPEXRow       = "2024-01-15,Mine,Drilling,Labour,50000,USD"
-	validFinancialRow  = "2024-01-15,-202,465867,0"
+	validFinancialRow  = "2024-01-15,-202,465867,0,0,0"
 )

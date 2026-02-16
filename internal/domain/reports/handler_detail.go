@@ -191,11 +191,18 @@ func (h *DetailHandler) parseDetailRequest(r *http.Request) (*DetailRequest, err
 		return nil, errors.New("invalid or missing year")
 	}
 
+	budgetVersionStr := r.URL.Query().Get("budget_version")
+	budgetVersion, err := strconv.Atoi(budgetVersionStr)
+	if err != nil || budgetVersion < 1 {
+		return nil, errors.New("invalid or missing budget_version (must be >= 1)")
+	}
+
 	months := r.URL.Query().Get("months")
 
 	return &DetailRequest{
-		CompanyID: companyID,
-		Year:      year,
-		Months:    months,
+		CompanyID:     companyID,
+		Year:          year,
+		Months:        months,
+		BudgetVersion: budgetVersion,
 	}, nil
 }
